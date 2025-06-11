@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from typing import Dict, List, Any, Optional, Tuple, AsyncGenerator
 from gradio_calendar import Calendar
 
-from models import OpenAIModel, CampaignAnalysisResponse
+from models import OpenAIModel, CampaignAnalysisResponse, ChangeEntry, ChangeSession
 from database import DatabaseConnection, CampaignChangesQuery
 from utils.data_formatter import (
     format_grouped_changes_for_display,
@@ -133,6 +133,36 @@ async def analyze_campaign_stream(
         user_grouped_changes = query_handler.group_changes_by_user_and_date(changes)
         changes_display_table = format_grouped_changes_for_display(user_grouped_changes)
 
+        # ------------------------------------------------------------------
+        # Build local ChangeSession objects so we can display change history
+        # ourselves instead of relying on the LLM to return it.
+        # ------------------------------------------------------------------
+        def _build_change_sessions(sessions_raw):
+            session_objs = []
+            skip_fields = {'performer', 'update_user', 'update_time'}
+            for sess in sessions_raw:
+                # Combine date and time strings into a single timestamp (add seconds to match HH:MM:SS)
+                timestamp = f"{sess['date']} {sess['time']}:00"
+                user = sess['user']
+                entry_objs = []
+                for ch in sess.get('changes', []):
+                    field_name = ch.get('field_name') or ch.get('field') or 'unknown_field'
+                    if field_name in skip_fields:
+                        continue
+                    entry_objs.append(
+                        ChangeEntry(
+                            timestamp=timestamp,
+                            user=user,
+                            field=field_name,
+                            old_value=str(ch.get('old_value', '')),
+                            new_value=str(ch.get('new_value', ''))
+                        )
+                    )
+                if entry_objs:
+                    session_objs.append(ChangeSession(timestamp, user, entry_objs))
+            return session_objs
+        change_session_objects = _build_change_sessions(user_grouped_changes)
+
         # Group changes by time for AI analysis (remains the same)
         time_grouped_changes = query_handler.group_changes_by_time(changes)
 
@@ -169,7 +199,13 @@ async def analyze_campaign_stream(
         progress(0.9, desc="📋 Finalizing results...")
         try:
             final_data = json.loads(ai_full_response)
-            final_response = CampaignAnalysisResponse.from_dict(final_data)
+            # Build the final CampaignAnalysisResponse using our locally constructed change sessions
+            final_response = CampaignAnalysisResponse(
+                summary=final_data.get("summary", "No summary available"),
+                change_sessions=change_session_objects,
+                key_insights=final_data.get("key_insights", []),
+                raw_response=json.dumps(final_data)
+            )
             final_summary = final_response.to_formatted_text()
         except (json.JSONDecodeError, KeyError) as e:
             final_summary = f"❌ AI analysis post-processing failed: {e}\n\nRaw response:\n{ai_full_response}"
