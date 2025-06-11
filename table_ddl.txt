@@ -1,3 +1,227 @@
+-- auto-generated definition
+create table affiliate_specific_campaign_stopper_changes_log
+(
+    id            bigint auto_increment,
+    affiliate_id  int                                 not null,
+    syndicator_id int                                 not null,
+    field_name    varchar(128)                        not null,
+    old_value     varchar(2000)                       null,
+    new_value     varchar(2000)                       null,
+    update_time   timestamp default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP,
+    primary key (id, update_time)
+)
+    comment 'Media' partition by range (unix_timestamp(`update_time`));
+
+create index stopper_affiliate_syndicator_idx
+    on affiliate_specific_campaign_stopper_changes_log (affiliate_id, syndicator_id);
+
+create index stopper_field_name_idx
+    on affiliate_specific_campaign_stopper_changes_log (field_name);
+
+create index update_time_key
+    on affiliate_specific_campaign_stopper_changes_log (update_time);
+
+
+
+---
+-- auto-generated definition
+create table campaign_exploration_config_changes_log
+(
+    id          bigint auto_increment,
+    campaign_id bigint        not null comment 'id',
+    field_name  varchar(50)   not null,
+    old_value   varchar(5000) null,
+    new_value   varchar(5000) null,
+    update_time datetime      not null,
+    update_user varchar(100)  null,
+    primary key (id, update_time)
+)
+    comment 'null - Aviad Shiber' partition by range (to_days(`update_time`));
+
+create index campaign_exploration_config_changes_log_idx
+    on campaign_exploration_config_changes_log (campaign_id);
+
+create index campaign_exploration_config_changes_log_idx2
+    on campaign_exploration_config_changes_log (update_time, field_name);
+Show table preview  
+---
+-- auto-generated definition
+create table campaign_exploration_config_changes_log
+(
+    id          bigint auto_increment,
+    campaign_id bigint        not null comment 'id',
+    field_name  varchar(50)   not null,
+    old_value   varchar(5000) null,
+    new_value   varchar(5000) null,
+    update_time datetime      not null,
+    update_user varchar(100)  null,
+    primary key (id, update_time)
+)
+    comment 'null - Aviad Shiber' partition by range (to_days(`update_time`));
+
+create index campaign_exploration_config_changes_log_idx
+    on campaign_exploration_config_changes_log (campaign_id);
+
+create index campaign_exploration_config_changes_log_idx2
+    on campaign_exploration_config_changes_log (update_time, field_name);
+
+---
+-- auto-generated definition
+create table campaigns_progress_changes_log
+(
+    id          bigint auto_increment,
+    campaign_id bigint        not null comment 'id',
+    field_name  varchar(50)   not null,
+    old_value   varchar(5000) null,
+    new_value   varchar(5000) null,
+    update_time datetime      not null,
+    primary key (id, update_time)
+)
+    comment 'Media - guy. b' partition by range (to_days(`update_time`));
+
+create index campaigns_progress_changes_log_idx
+    on campaigns_progress_changes_log (campaign_id);
+
+create index campaigns_progress_changes_log_idx2
+    on campaigns_progress_changes_log (update_time, field_name);
+Show table preview  
+---
+-- auto-generated definition
+create table cra_campaign_assignments_changes_log
+(
+    id          bigint auto_increment,
+    campaign_id bigint        not null,
+    field_name  varchar(50)   not null,
+    old_value   varchar(5000) null,
+    new_value   varchar(5000) null,
+    update_time datetime      not null,
+    update_user varchar(100)  null,
+    primary key (id, update_time)
+)
+    comment 'Internal Apps - david. c' partition by range (to_days(`update_time`));
+
+create index cra_campaign_assignments_changes_log_idx
+    on cra_campaign_assignments_changes_log (campaign_id);
+
+create index cra_campaign_assignments_changes_log_idx2
+    on cra_campaign_assignments_changes_log (update_time, field_name);
+---
+-- auto-generated definition
+create table dco_campaigns_changes_log
+(
+    id             bigint auto_increment,
+    sp_campaign_id int           not null,
+    field_name     varchar(50)   not null,
+    old_value      varchar(5000) null,
+    new_value      varchar(5000) null,
+    update_time    datetime      not null,
+    update_user    varchar(100)  null,
+    primary key (id, update_time)
+)
+    comment 'Emerging Demand - ofer. c';
+
+create index dco_campaigns_changes_log_idx
+    on dco_campaigns_changes_log (sp_campaign_id);
+
+create index dco_campaigns_changes_log_idx2
+    on dco_campaigns_changes_log (update_time, field_name);
+---- auto-generated definition
+create table max_conversions_campaigns_performance_data_changes_log
+(
+    id                                            bigint auto_increment,
+    max_conversions_campaigns_performance_data_id bigint        not null comment 'id',
+    campaign_id                                   bigint        not null,
+    field_name                                    varchar(50)   not null,
+    old_value                                     varchar(5000) null,
+    new_value                                     varchar(5000) null,
+    update_time                                   datetime      not null,
+    primary key (id, update_time)
+)
+    comment 'Media - nir. l' partition by range (to_days(`update_time`));
+
+create index max_conversions_campaigns_performance_data_changes_log_idx
+    on max_conversions_campaigns_performance_data_changes_log (max_conversions_campaigns_performance_data_id);
+
+create index max_conversions_campaigns_performance_data_changes_log_idx2
+    on max_conversions_campaigns_performance_data_changes_log (update_time, field_name);
+
+create index max_conversions_campaigns_performance_data_cl_campaign_idx
+    on max_conversions_campaigns_performance_data_changes_log (campaign_id);
+
+--
+-- auto-generated definition
+create table sp_campaign_bid_strategy_per_affiliate_changes_log
+(
+    id                                        bigint auto_increment,
+    sp_campaign_bid_strategy_per_affiliate_id int           not null comment 'id',
+    field_name                                varchar(50)   not null,
+    old_value                                 varchar(5000) null,
+    new_value                                 varchar(5000) null,
+    update_time                               datetime      not null,
+    update_user                               varchar(100)  null,
+    primary key (id, update_time)
+)
+    comment 'Media - avi. m' partition by range (to_days(`update_time`));
+
+create index sp_campaign_bid_strategy_per_affiliate_changes_log_idx
+    on sp_campaign_bid_strategy_per_affiliate_changes_log (sp_campaign_bid_strategy_per_affiliate_id);
+
+create index sp_campaign_bid_strategy_per_affiliate_changes_log_idx2
+    on sp_campaign_bid_strategy_per_affiliate_changes_log (update_time, field_name);
+--
+
+
+
+------------
+
+Data Source: Production Schema: trc Table: sp_campaign_context_cpc_modification_configuration_changes_log  -- Media - boris. l 
+-- auto-generated definition
+create table sp_campaign_context_cpc_modification_configuration_changes_log
+(
+    id            bigint auto_increment,
+    config_id     int                                 not null,
+    campaign_id   bigint                              null,
+    affiliate_id  bigint                              null,
+    platform_code varchar(255)                        null,
+    field_name    varchar(50)                         not null,
+    old_value     varchar(5000)                       null,
+    new_value     varchar(5000)                       null,
+    update_time   timestamp default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP,
+    primary key (id, update_time)
+)
+    comment 'Media - boris. l' partition by range (unix_timestamp(`update_time`)) row_format = COMPRESSED;
+
+create index sp_campaign_context_cpc_modification_changes_log_idx
+    on sp_campaign_context_cpc_modification_configuration_changes_log (campaign_id, affiliate_id);
+Show table preview  
+
+----
+
+Data Source: Production Schema: trc Table: sp_campaign_day_parting_changes_log  -- Media 
+-- auto-generated definition
+create table sp_campaign_day_parting_changes_log
+(
+    id          bigint auto_increment,
+    config_id   int                                 not null,
+    campaign_id int                                 null,
+    field_name  varchar(50)                         not null,
+    old_value   varchar(5000)                       null,
+    new_value   varchar(5000)                       null,
+    update_time timestamp default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP,
+    primary key (id, update_time)
+)
+    comment 'Media' partition by range (unix_timestamp(`update_time`)) row_format = COMPRESSED;
+
+create index sp_campaign_day_parting_changes_log_idx
+    on sp_campaign_day_parting_changes_log (campaign_id);
+
+create index updateTime_fieldName_idx
+    on sp_campaign_day_parting_changes_log (update_time, field_name);
+Show table preview  
+----
+
+Data Source: Production Schema: trc Table: sp_campaign_details_v2_changes_log  -- Media - arik. f 
+-- auto-generated definition
 create table sp_campaign_details_v2_changes_log
 (
     id          bigint auto_increment,
@@ -16,3 +240,228 @@ create index sp_campaign_details_v2_changes_log_idx
 
 create index sp_campaign_details_v2_changes_log_idx2
     on sp_campaign_details_v2_changes_log (update_time, field_name);
+Show table preview  
+
+---
+
+
+Data Source: Production Schema: trc Table: sp_campaign_features_changes_log  
+-- auto-generated definition
+create table sp_campaign_features_changes_log
+(
+    id          bigint auto_increment,
+    campaign_id int                                 not null,
+    feature     varchar(50)                         not null,
+    old_value   varchar(200)                        null,
+    new_value   varchar(200)                        null,
+    performer   varchar(100)                        not null,
+    update_time timestamp default CURRENT_TIMESTAMP not null,
+    primary key (id, update_time)
+)
+    partition by range (unix_timestamp(`update_time`));
+
+create index campaign_features_changes_log_campaign_id_feature_idx
+    on sp_campaign_features_changes_log (campaign_id, feature);
+
+create index sp_campaign_features_changes_log_update_time_idx
+    on sp_campaign_features_changes_log (update_time);
+Show table preview  
+
+--
+
+
+Data Source: Production Schema: trc Table: sp_campaign_restrictions_changes_log  
+-- auto-generated definition
+create table sp_campaign_restrictions_changes_log
+(
+    id             bigint auto_increment
+        primary key,
+    restriction_id bigint                              not null,
+    campaign_id    bigint                              not null,
+    field_name     varchar(256)                        not null,
+    old_value      varchar(2000)                       null,
+    new_value      varchar(2000)                       null,
+    update_time    timestamp default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP
+);
+
+create index sp_campaign_restrictions_campaign_id_log_idx
+    on sp_campaign_restrictions_changes_log (campaign_id, field_name(255), id);
+
+create index sp_campaign_restrictions_restriction_id_log_idx
+    on sp_campaign_restrictions_changes_log (restriction_id, field_name(255), id);
+Show table preview  
+--
+
+Data Source: Production Schema: trc Table: sp_campaign_targeting_changes_log  
+-- auto-generated definition
+create table sp_campaign_targeting_changes_log
+(
+    id           bigint auto_increment,
+    campaign_id  int                                    not null comment 'id',
+    affiliate_id int                                    not null,
+    rule_type    varchar(50)                            not null,
+    action       varchar(20)                            not null,
+    performer    varchar(256)                           null,
+    update_time  datetime default '0000-00-00 00:00:00' not null,
+    primary key (id, update_time)
+)
+    partition by range (to_days(`update_time`));
+
+create index sp_campaign_targeting_changes_log_idx
+    on sp_campaign_targeting_changes_log (campaign_id, affiliate_id);
+
+create index sp_campaign_targeting_changes_log_idx2
+    on sp_campaign_targeting_changes_log (update_time, action);
+Show table preview  
+
+------
+
+Data Source: Production Schema: trc Table: sp_campaigns_changes_log  -- Media - matan. t 
+-- auto-generated definition
+create table sp_campaigns_changes_log
+(
+    id           bigint auto_increment,
+    campaigns_id int                                 not null,
+    field_name   varchar(256)                        not null,
+    old_value    varchar(2000)                       null,
+    new_value    varchar(2000)                       null,
+    update_time  timestamp default CURRENT_TIMESTAMP not null,
+    primary key (id, update_time)
+)
+    comment 'Media - matan. t' partition by range (unix_timestamp(`update_time`));
+
+create index IX_update_time
+    on sp_campaigns_changes_log (update_time);
+
+create index changes_log_idx
+    on sp_campaigns_changes_log (campaigns_id, field_name(255), id);
+Show table preview  
+
+---------
+
+Data Source: Production Schema: trc Table: sp_campaigns_spent_plan_config_changes_log  -- Media - nir. l 
+-- auto-generated definition
+create table sp_campaigns_spent_plan_config_changes_log
+(
+    id                                bigint auto_increment,
+    sp_campaigns_spent_plan_config_id bigint        not null comment 'id',
+    campaign_id                       bigint        not null,
+    field_name                        varchar(50)   not null,
+    old_value                         varchar(5000) null,
+    new_value                         varchar(5000) null,
+    update_time                       datetime      not null,
+    update_user                       varchar(100)  null,
+    primary key (id, update_time)
+)
+    comment 'Media - nir. l' partition by range (to_days(`update_time`));
+
+create index sp_campaigns_spent_plan_config_changes_log_idx
+    on sp_campaigns_spent_plan_config_changes_log (sp_campaigns_spent_plan_config_id);
+
+create index sp_campaigns_spent_plan_config_changes_log_idx2
+    on sp_campaigns_spent_plan_config_changes_log (campaign_id);
+
+create index sp_campaigns_spent_plan_config_changes_log_idx3
+    on sp_campaigns_spent_plan_config_changes_log (update_time, field_name);
+Show table preview  
+---
+
+Data Source: Production Schema: trc Table: target_cpa_campaigns_configurations_changes_log  -- Media - chen. a 
+-- auto-generated definition
+create table target_cpa_campaigns_configurations_changes_log
+(
+    id          bigint auto_increment,
+    campaign_id bigint        not null comment 'campaign_id',
+    field_name  varchar(50)   not null,
+    old_value   varchar(5000) null,
+    new_value   varchar(5000) null,
+    update_time datetime      not null,
+    update_user varchar(100)  null,
+    primary key (id, update_time)
+)
+    comment 'Media - chen. a';
+
+create index target_cpa_campaigns_configurations_changes_log_idx
+    on target_cpa_campaigns_configurations_changes_log (campaign_id);
+
+create index target_cpa_campaigns_configurations_changes_log_idx2
+    on target_cpa_campaigns_configurations_changes_log (update_time, field_name);
+Show table preview  
+
+------
+
+
+Data Source: Production Schema: trc Table: target_cpa_feedback_loop_campaigns_settings_changes_log  -- Media - dotan. b 
+-- auto-generated definition
+create table target_cpa_feedback_loop_campaigns_settings_changes_log
+(
+    id                                             bigint auto_increment,
+    target_cpa_feedback_loop_campaigns_settings_id bigint        not null comment 'id',
+    campaign_id                                    bigint        not null comment 'campaign_id',
+    field_name                                     varchar(50)   not null,
+    old_value                                      varchar(5000) null,
+    new_value                                      varchar(5000) null,
+    update_time                                    datetime      not null,
+    update_user                                    varchar(100)  null,
+    primary key (id, update_time)
+)
+    comment 'Media - dotan. b';
+
+create index target_cpa_feedback_loop_campaigns_settings_changes_log_idx
+    on target_cpa_feedback_loop_campaigns_settings_changes_log (campaign_id);
+
+create index target_cpa_feedback_loop_campaigns_settings_changes_log_idx2
+    on target_cpa_feedback_loop_campaigns_settings_changes_log (update_time, field_name);
+Show table preview  
+
+------
+
+
+Data Source: Production Schema: trc Table: temp_sp_campaign_details_v2_changes_log  -- Media - arik. f 
+-- auto-generated definition
+create table temp_sp_campaign_details_v2_changes_log
+(
+    id          bigint auto_increment,
+    campaign_id int           not null comment 'id',
+    field_name  varchar(50)   not null,
+    old_value   varchar(5000) null,
+    new_value   varchar(5000) null,
+    update_time datetime      not null,
+    update_user varchar(100)  null,
+    primary key (id, update_time)
+)
+    comment 'Media - arik. f' partition by range (to_days(`update_time`));
+
+create index sp_campaign_details_v2_changes_log_idx
+    on temp_sp_campaign_details_v2_changes_log (campaign_id, update_time);
+
+create index sp_campaign_details_v2_changes_log_idx2
+    on temp_sp_campaign_details_v2_changes_log (update_time, field_name);
+
+create index sp_campaign_details_v2_changes_log_idx3
+    on temp_sp_campaign_details_v2_changes_log (update_user, field_name, update_time);
+Show table preview  
+-------
+
+Data Source: Production Schema: trc Table: unip_funnel_campaign_changes_log  -- Media - zoe. e 
+-- auto-generated definition
+create table unip_funnel_campaign_changes_log
+(
+    id                      bigint auto_increment,
+    unip_funnel_campaign_id bigint        not null comment 'id',
+    field_name              varchar(50)   not null,
+    old_value               varchar(5000) null,
+    new_value               varchar(5000) null,
+    update_time             datetime      not null,
+    update_user             varchar(100)  null,
+    primary key (id, update_time)
+)
+    comment 'Media - zoe. e' partition by range (to_days(`update_time`));
+
+create index unip_funnel_campaign_changes_log_idx
+    on unip_funnel_campaign_changes_log (unip_funnel_campaign_id);
+
+create index unip_funnel_campaign_changes_log_idx2
+    on unip_funnel_campaign_changes_log (update_time, field_name);
+Show table preview  
+

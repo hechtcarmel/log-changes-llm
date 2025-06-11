@@ -36,6 +36,7 @@ async def analyze_campaign(
     campaign_id: str,
     from_date: str,
     to_date: str,
+    selected_tables: List[str],
     progress: gr.Progress = gr.Progress()
 ) -> Tuple[str, any, any, str, str, str]:
     """Analyze campaign changes and generate AI insights."""
@@ -51,6 +52,9 @@ async def analyze_campaign(
     
     if not from_date or not to_date:
         return "❌ Please provide both from and to dates", None, None, "", "", ""
+    
+    if not selected_tables:
+        return "❌ Please select at least one table to query", None, None, "", "", ""
     
     try:
         campaign_id_int = int(campaign_id)
@@ -106,14 +110,14 @@ async def analyze_campaign(
         if not db.connect(username, password):
             return "❌ Failed to connect to database", None, None, "", "", ""
         
-        progress(0.5, desc="🔍 Querying campaign changes from database...")
+        progress(0.5, desc=f"🔍 Querying {len(selected_tables)} tables for campaign changes...")
         
-        # Get campaign changes
-        changes = query_handler.get_campaign_changes(campaign_id_int, from_date, to_date)
+        # Get campaign changes from selected tables
+        changes = query_handler.get_campaign_changes(campaign_id_int, from_date, to_date, selected_tables)
         
         if not changes:
             db.disconnect()
-            return status_message, None, None, "No changes found for this campaign ID in the specified date range", "", ""
+            return status_message, None, None, f"No changes found for campaign ID {campaign_id} in the specified date range from selected tables", "", ""
         
         progress(0.6, desc="✅ Campaign data retrieved successfully")
         
@@ -122,7 +126,7 @@ async def analyze_campaign(
         
         # Generate summary statistics
         stats = query_handler.get_campaign_summary_stats(changes)
-        stats_text = format_summary_stats(stats, from_date, to_date)
+        stats_text = format_summary_stats(stats, from_date, to_date, selected_tables)
         
         progress(0.7, desc="📊 Processing and formatting data...")
         
@@ -163,119 +167,186 @@ async def analyze_campaign(
         progress(0, desc="❌ Error occurred during analysis")
         return f"❌ Error: {str(e)}", None, None, "", "", ""
 
-# Get today's date as default
-today = date.today().strftime('%Y-%m-%d')
-
-# Create Gradio interface
-with gr.Blocks(title="Campaign Changes Analyzer", theme=gr.themes.Soft()) as app:
-    gr.Markdown("# 📊 Campaign Changes Analyzer")
-    gr.Markdown("Analyze campaign modifications and get AI-powered insights about changes and strategic implications.")
+def create_interface():
+    """Create and configure the Gradio interface."""
     
-    with gr.Row():
-        with gr.Column(scale=1):
-            gr.Markdown("### Database Connection")
-            username_input = gr.Textbox(
-                label="MySQL Username",
-                placeholder="Enter database username",
-                type="text"
-            )
-            
-            password_input = gr.Textbox(
-                label="MySQL Password", 
-                placeholder="Enter database password",
-                type="password"
-            )
-            
-            campaign_id_input = gr.Textbox(
-                label="Campaign ID",
-                placeholder="Enter campaign ID (numeric)",
-                type="text"
-            )
-            
-            with gr.Row():
-                from_date_input = Calendar(
-                    value=today,
-                    type="string",
-                    label="From Date (Required)",
-                    info="Select start date for filtering changes"
+    # Get available tables for selection
+    query_handler = CampaignChangesQuery(None)  # Just for table info
+    available_tables = query_handler.get_available_tables()
+    
+    # Prepare table choices for checkboxes
+    table_choices = [f"{name} - {info['description']}" for name, info in available_tables.items()]
+    table_names = list(available_tables.keys())
+    
+    today = date.today().strftime('%Y-%m-%d')
+    
+    with gr.Blocks(
+        title="Campaign Changes Analyzer",
+        theme=gr.themes.Soft(),
+        css="""
+        .tab-nav { background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); }
+        .tab-nav button { color: white !important; }
+        #ai_analysis_wrapper {
+            height: 60vh;
+            overflow-y: auto;
+            border: 1px solid #E5E7EB; 
+            border-radius: 8px; 
+            padding: 1rem;
+        }
+        .markdown-content {
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+        .markdown-content ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .markdown-content li {
+            margin-bottom: 0.5em;
+        }
+        """
+    ) as app:
+        
+        gr.Markdown("""
+        # 🔍 Campaign Changes Analyzer
+        
+        Analyze campaign changes across multiple database tables with AI-powered insights.
+        """)
+        
+        with gr.Row():
+            with gr.Column(scale=3):
+                gr.Markdown("### 🔐 Database Connection")
+                with gr.Row():
+                    username_input = gr.Textbox(
+                        label="Username",
+                        placeholder="Enter database username",
+                        info="Your database username"
+                    )
+                    password_input = gr.Textbox(
+                        label="Password",
+                        type="password",
+                        placeholder="Enter database password",
+                        info="Your database password"
+                    )
+                
+                gr.Markdown("### 📊 Analysis Parameters")
+                campaign_id_input = gr.Textbox(
+                    label="Campaign ID (Required)",
+                    placeholder="Enter campaign ID",
+                    info="The campaign ID to analyze"
                 )
                 
-                to_date_input = Calendar(
-                    value=today,
-                    type="string", 
-                    label="To Date (Required)",
-                    info="Select end date for filtering changes"
+                with gr.Row():
+                    from_date_input = Calendar(
+                        label="From Date (Required)",
+                        value=today,
+                        type="string",
+                        info="Start date for filtering changes"
+                    )
+                    
+                    to_date_input = Calendar(
+                        label="To Date (Required)", 
+                        value=today,
+                        type="string",
+                        info="End date for filtering changes"
+                    )
+
+                # Table selection section
+                gr.Markdown("### 🗂️ Data Sources")
+                with gr.Accordion("Select Tables to Query", open=False):
+                    gr.Markdown("Choose which change log tables to include in the analysis:")
+                    table_selection = gr.CheckboxGroup(
+                        choices=table_choices,
+                        value=table_choices,  # All selected by default
+                        label="Available Tables",
+                        info=f"Select from {len(table_choices)} available change log tables"
+                    )
+                
+                connection_status = gr.Markdown("🔄 Ready to connect...")
+                
+                analyze_button = gr.Button(
+                    "🔍 Analyze Campaign Changes",
+                    variant="primary",
+                    size="lg"
                 )
             
-            analyze_button = gr.Button("🔍 Analyze Campaign Changes", variant="primary", size="lg")
+            with gr.Column(scale=4):
+                gr.Markdown("### 🤖 AI Analysis")
+                with gr.Column(elem_id="ai_analysis_wrapper"):
+                    ai_analysis = gr.Markdown(
+                        label="AI-Generated Analysis",
+                        value="Click 'Analyze Campaign Changes' to generate AI insights...",
+                        elem_classes=["markdown-content"]
+                    )
         
-        with gr.Column(scale=2):
-            connection_status = gr.Textbox(
-                label="Connection Status",
-                placeholder="Connection status will appear here...",
-                interactive=False,
-                max_lines=2
-            )
-            
-            ai_analysis = gr.Textbox(
-                label="🤖 AI Analysis & Insights",
-                placeholder="AI-generated insights will appear here...",
-                lines=15,
-                interactive=False
-            )
+        # Results tabs
+        with gr.Tabs():
+            with gr.Tab("📋 Grouped Changes"):
+                grouped_changes_table = gr.Dataframe(
+                    label="Changes Grouped by Time",
+                    interactive=False,
+                    wrap=True
+                )
+                
+            with gr.Tab("📊 All Changes"):
+                all_changes_table = gr.Dataframe(
+                    label="All Campaign Changes",
+                    interactive=False,
+                    wrap=True
+                )
+                
+            with gr.Tab("📈 Statistics"):
+                stats_output = gr.Markdown(
+                    label="Summary Statistics",
+                    value="Statistics will appear here after analysis..."
+                )
+                
+            with gr.Tab("🔍 Raw Data for AI"):
+                raw_ai_input = gr.Textbox(
+                    label="Formatted Data Sent to AI",
+                    lines=10,
+                    max_lines=20,
+                    value="Raw data will appear here after analysis..."
+                )
+
+        # Event handlers
+        analyze_button.click(
+            fn=lambda username, password, campaign_id, from_date, to_date, table_selection: asyncio.run(
+                analyze_campaign(
+                    username, 
+                    password, 
+                    campaign_id, 
+                    from_date, 
+                    to_date,
+                    [table_names[table_choices.index(choice)] for choice in table_selection]
+                )
+            ),
+            inputs=[
+                username_input,
+                password_input, 
+                campaign_id_input,
+                from_date_input,
+                to_date_input,
+                table_selection
+            ],
+            outputs=[
+                connection_status,
+                all_changes_table,
+                grouped_changes_table,
+                ai_analysis,
+                stats_output,
+                raw_ai_input
+            ]
+        )
     
-    with gr.Tabs():
-        with gr.TabItem("📋 Grouped Changes"):
-            grouped_changes_table = gr.Dataframe(
-                label="Changes Grouped by Update Time",
-                interactive=False,
-                wrap=True
-            )
-        
-        with gr.TabItem("📑 All Changes"):
-            all_changes_table = gr.Dataframe(
-                label="Complete Change History",
-                interactive=False,
-                wrap=True
-            )
-        
-        with gr.TabItem("📈 Statistics"):
-            stats_output = gr.Textbox(
-                label="Campaign Change Statistics",
-                placeholder="Summary statistics will appear here...",
-                lines=15,
-                interactive=False
-            )
-        
-        with gr.TabItem("🔧 Raw Data"):
-            raw_ai_input = gr.Textbox(
-                label="Raw Data Sent to AI",
-                placeholder="Formatted data sent to AI for analysis...",
-                lines=20,
-                interactive=False
-            )
-    
-    # Event handlers
-    analyze_button.click(
-        fn=lambda username, password, campaign_id, from_date, to_date: asyncio.run(
-            analyze_campaign(username, password, campaign_id, from_date, to_date)
-        ),
-        inputs=[
-            username_input,
-            password_input, 
-            campaign_id_input,
-            from_date_input,
-            to_date_input
-        ],
-        outputs=[
-            connection_status,
-            all_changes_table,
-            grouped_changes_table,
-            ai_analysis,
-            stats_output,
-            raw_ai_input
-        ]
-    )
+    return app
 
 if __name__ == "__main__":
-    app.launch() 
+    app = create_interface()
+    app.launch(
+        server_name="0.0.0.0",
+        server_port=7861,
+        show_error=True,
+        share=False
+    ) 
+    

@@ -41,6 +41,8 @@ FORMAT RULES:
 - Group changes by session (same time/user)
 - Separate sessions with "----"
 - Order chronologically (most recent first)
+- Each bullet point must be on its own line
+- Use proper line breaks between sections
 
 ANALYSIS GUIDELINES:
 
