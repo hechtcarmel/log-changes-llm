@@ -9,28 +9,33 @@ class CampaignChangesQuery:
     def __init__(self, db_connection: DatabaseConnection):
         self.db = db_connection
         
-    def get_campaign_changes(self, campaign_id: int, limit: int = 10) -> Optional[List[Dict[str, Any]]]:
+    def get_campaign_changes(self, campaign_id: int, from_date: str, 
+                            to_date: str) -> Optional[List[Dict[str, Any]]]:
         """
-        Retrieve campaign changes for a specific campaign ID.
+        Retrieve campaign changes for a specific campaign ID with date filtering.
         
         Args:
             campaign_id: The campaign ID to query
-            limit: Maximum number of records to return
+            from_date: Start date for filtering (YYYY-MM-DD format), required
+            to_date: End date for filtering (YYYY-MM-DD format), required  
             
         Returns:
             List of change records or None if error
         """
-        query = """
+        # Build query with date filtering
+        where_conditions = ["campaign_id = %s", "update_time >= %s", "update_time < DATE_ADD(%s, INTERVAL 1 DAY)"]
+        params = [campaign_id, from_date, to_date]
+        
+        query = f"""
         SELECT id, campaign_id, field_name, old_value, new_value, 
                update_time, update_user
         FROM sp_campaign_details_v2_changes_log 
-        WHERE campaign_id = %s 
-        ORDER BY update_time DESC 
-        LIMIT %s
+        WHERE {' AND '.join(where_conditions)}
+        ORDER BY update_time DESC
         """
         
         try:
-            results = self.db.execute_query(query, (campaign_id, limit))
+            results = self.db.execute_query(query, tuple(params))
             if results:
                 # Convert datetime objects to strings for JSON serialization
                 for record in results:

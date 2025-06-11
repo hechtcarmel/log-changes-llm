@@ -100,25 +100,36 @@ def format_connection_status(status: Dict[str, Any]) -> str:
     else:
         return f"❌ Connection failed: {status.get('message', 'Unknown error')}"
 
-def format_summary_stats(stats: Dict[str, Any]) -> str:
+def format_summary_stats(stats: Dict[str, Any], from_date: str = None, to_date: str = None) -> str:
     """
     Format campaign summary statistics for display.
     
     Args:
         stats: Summary statistics dictionary
+        from_date: Filter start date (optional)
+        to_date: Filter end date (optional)
         
     Returns:
         Formatted statistics string
     """
     if stats['total_changes'] == 0:
-        return "No changes found for this campaign."
+        return "No changes found for this campaign in the specified date range."
+    
+    # Build filter info
+    filter_info = ""
+    if from_date or to_date:
+        filter_info = "\n**Applied Filters:**\n"
+        if from_date:
+            filter_info += f"📅 From Date: {from_date}\n"
+        if to_date:
+            filter_info += f"📅 To Date: {to_date}\n"
     
     text = f"""**Campaign Change Summary:**
 📊 Total Changes: {stats['total_changes']}
 🔧 Unique Fields: {stats['unique_fields']}
-👥 Unique Users: {stats['unique_users']}
+👥 Unique Users: {stats['unique_users']}{filter_info}
 
-**Date Range:**
+**Actual Date Range in Results:**
 📅 Earliest: {stats['date_range']['earliest'][:19] if stats['date_range']['earliest'] else 'N/A'}
 📅 Latest: {stats['date_range']['latest'][:19] if stats['date_range']['latest'] else 'N/A'}
 

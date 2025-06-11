@@ -43,8 +43,6 @@ class OpenAIModel(BaseModel):
                     summary=output.get("summary"),
                     change_history=output.get("change_history"),
                     key_insights=output.get("key_insights", []),
-                    risk_factors=output.get("risk_factors", []),
-                    recommendations=output.get("recommendations", []),
                     raw_response=raw_response
                 )
             except (json.JSONDecodeError, KeyError):

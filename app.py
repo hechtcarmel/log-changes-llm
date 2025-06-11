@@ -2,6 +2,7 @@ import os
 import gradio as gr
 import asyncio
 import logging
+from datetime import datetime, date
 from dotenv import load_dotenv
 from typing import Dict, List, Any, Optional, Tuple
 
@@ -32,7 +33,8 @@ async def analyze_campaign(
     username: str,
     password: str,
     campaign_id: str,
-    limit: int = 10
+    from_date: str,
+    to_date: str
 ) -> Tuple[str, any, any, str, str, str]:
     """Analyze campaign changes and generate AI insights."""
     
@@ -43,10 +45,35 @@ async def analyze_campaign(
     if not campaign_id:
         return "❌ Please provide a campaign ID", None, None, "", "", ""
     
+    if not from_date or not to_date:
+        return "❌ Please provide both from and to dates", None, None, "", "", ""
+    
     try:
         campaign_id_int = int(campaign_id)
     except ValueError:
         return "❌ Campaign ID must be a number", None, None, "", "", ""
+    
+    # Date validation
+    def validate_date(date_str: str, field_name: str) -> bool:
+        try:
+            datetime.strptime(date_str, '%Y-%m-%d')
+            return True
+        except ValueError:
+            return False
+    
+    if not validate_date(from_date, "From Date"):
+        return "❌ From Date must be in YYYY-MM-DD format", None, None, "", "", ""
+    
+    if not validate_date(to_date, "To Date"):
+        return "❌ To Date must be in YYYY-MM-DD format", None, None, "", "", ""
+    
+    try:
+        from_dt = datetime.strptime(from_date, '%Y-%m-%d')
+        to_dt = datetime.strptime(to_date, '%Y-%m-%d')
+        if from_dt > to_dt:
+            return "❌ From Date must be before To Date", None, None, "", "", ""
+    except ValueError:
+        pass
     
     if not openai_model:
         return "❌ OpenAI API key not configured", None, None, "", "", ""
@@ -68,18 +95,18 @@ async def analyze_campaign(
             return "❌ Failed to connect to database", None, None, "", "", ""
         
         # Get campaign changes
-        changes = query_handler.get_campaign_changes(campaign_id_int, limit)
+        changes = query_handler.get_campaign_changes(campaign_id_int, from_date, to_date)
         
         if not changes:
             db.disconnect()
-            return status_message, None, None, "No changes found for this campaign ID", "", ""
+            return status_message, None, None, "No changes found for this campaign ID in the specified date range", "", ""
         
         # Group changes by time
         grouped_changes = query_handler.group_changes_by_time(changes)
         
         # Generate summary statistics
         stats = query_handler.get_campaign_summary_stats(changes)
-        stats_text = format_summary_stats(stats)
+        stats_text = format_summary_stats(stats, from_date, to_date)
         
         # Format data for AI analysis
         ai_input_text = query_handler.format_changes_for_ai(grouped_changes)
@@ -111,10 +138,13 @@ async def analyze_campaign(
             db.disconnect()
         return f"❌ Error: {str(e)}", None, None, "", "", ""
 
+# Get today's date as default
+today = date.today().strftime('%Y-%m-%d')
+
 # Create Gradio interface
 with gr.Blocks(title="Campaign Changes Analyzer", theme=gr.themes.Soft()) as app:
     gr.Markdown("# 📊 Campaign Changes Analyzer")
-    gr.Markdown("Analyze campaign modifications and get AI-powered insights about changes, risks, and recommendations.")
+    gr.Markdown("Analyze campaign modifications and get AI-powered insights about changes and strategic implications.")
     
     with gr.Row():
         with gr.Column(scale=1):
@@ -133,18 +163,26 @@ with gr.Blocks(title="Campaign Changes Analyzer", theme=gr.themes.Soft()) as app
             
             campaign_id_input = gr.Textbox(
                 label="Campaign ID",
-                placeholder="Enter campaign ID (e.g., 12345)",
+                placeholder="Enter campaign ID (numeric)",
                 type="text"
             )
             
-            limit_input = gr.Slider(
-                label="Max Records",
-                minimum=5,
-                maximum=50,
-                value=10,
-                step=5,
-                info="Maximum number of change records to retrieve"
-            )
+            with gr.Row():
+                from_date_input = gr.Textbox(
+                    label="From Date (Required)",
+                    placeholder="YYYY-MM-DD",
+                    value=today,
+                    type="text",
+                    info="Start date for filtering changes"
+                )
+                
+                to_date_input = gr.Textbox(
+                    label="To Date (Required)", 
+                    placeholder="YYYY-MM-DD",
+                    value=today,
+                    type="text",
+                    info="End date for filtering changes"
+                )
             
             analyze_button = gr.Button("🔍 Analyze Campaign Changes", variant="primary", size="lg")
         
@@ -157,7 +195,7 @@ with gr.Blocks(title="Campaign Changes Analyzer", theme=gr.themes.Soft()) as app
             )
             
             ai_analysis = gr.Textbox(
-                label="🤖 AI Analysis & Recommendations",
+                label="🤖 AI Analysis & Insights",
                 placeholder="AI-generated insights will appear here...",
                 lines=15,
                 interactive=False
@@ -196,10 +234,16 @@ with gr.Blocks(title="Campaign Changes Analyzer", theme=gr.themes.Soft()) as app
     
     # Event handlers
     analyze_button.click(
-        fn=lambda username, password, campaign_id, limit: asyncio.run(
-            analyze_campaign(username, password, campaign_id, limit)
+        fn=lambda username, password, campaign_id, from_date, to_date: asyncio.run(
+            analyze_campaign(username, password, campaign_id, from_date, to_date)
         ),
-        inputs=[username_input, password_input, campaign_id_input, limit_input],
+        inputs=[
+            username_input,
+            password_input, 
+            campaign_id_input,
+            from_date_input,
+            to_date_input
+        ],
         outputs=[
             connection_status,
             all_changes_table,
@@ -209,33 +253,6 @@ with gr.Blocks(title="Campaign Changes Analyzer", theme=gr.themes.Soft()) as app
             raw_ai_input
         ]
     )
-    
-    # Add example section
-    with gr.Accordion("💡 Usage Instructions", open=False):
-        gr.Markdown("""
-        ### How to Use:
-        1. **Database Credentials**: Enter your MySQL username and password
-        2. **Campaign ID**: Enter the numeric campaign ID to analyze  
-        3. **Max Records**: Choose how many recent changes to retrieve (5-50)
-        4. **Analyze**: Click the button to retrieve data and generate insights
-        
-        ### What You'll Get:
-        - **AI Analysis**: Strategic insights, risk factors, and recommendations
-        - **Grouped Changes**: Changes organized by update time for better understanding
-        - **All Changes**: Complete chronological list of modifications
-        - **Statistics**: Summary metrics about change patterns and user activity
-        - **Raw Data**: The formatted data sent to AI for transparency
-        
-        ### Database Details:
-        - **Host**: proxysql-office.taboolasyndication.com:6033
-        - **Database**: trc
-        - **Table**: sp_campaign_details_v2_changes_log
-        """)
 
 if __name__ == "__main__":
-    app.launch(
-        server_name="0.0.0.0",
-        server_port=7860,
-        share=False,
-        show_api=True
-    ) 
+    app.launch() 

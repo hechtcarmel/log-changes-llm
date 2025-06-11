@@ -10,15 +10,11 @@ class CampaignAnalysisResponse:
         summary: Optional[str] = None,
         change_history: Optional[str] = None,
         key_insights: Optional[List[str]] = None,
-        risk_factors: Optional[List[str]] = None,
-        recommendations: Optional[List[str]] = None,
         raw_response: Optional[str] = None
     ):
         self.summary = summary or "No summary available"
         self.change_history = change_history or "No change history available"
         self.key_insights = key_insights or []
-        self.risk_factors = risk_factors or []
-        self.recommendations = recommendations or []
         self.raw_response = raw_response
     
     def to_json(self) -> str:
@@ -27,8 +23,6 @@ class CampaignAnalysisResponse:
             "summary": self.summary,
             "change_history": self.change_history,
             "key_insights": self.key_insights,
-            "risk_factors": self.risk_factors,
-            "recommendations": self.recommendations,
             "raw_response": self.raw_response
         })
     
@@ -38,8 +32,6 @@ class CampaignAnalysisResponse:
             "summary": self.summary,
             "change_history": self.change_history,
             "key_insights": self.key_insights,
-            "risk_factors": self.risk_factors,
-            "recommendations": self.recommendations,
             "raw_response": self.raw_response
         }
     
@@ -55,18 +47,6 @@ class CampaignAnalysisResponse:
             text += "**💡 Key Insights:**\n"
             for insight in self.key_insights:
                 text += f"• {insight}\n"
-            text += "\n"
-        
-        if self.risk_factors:
-            text += "**⚠️ Risk Factors:**\n"
-            for risk in self.risk_factors:
-                text += f"• {risk}\n"
-            text += "\n"
-        
-        if self.recommendations:
-            text += "**🔧 Recommendations:**\n"
-            for rec in self.recommendations:
-                text += f"• {rec}\n"
             text += "\n"
         
         return text
