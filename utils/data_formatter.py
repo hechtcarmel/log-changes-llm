@@ -1,55 +1,53 @@
 from typing import List, Dict, Any
 import pandas as pd
 
-def format_changes_table(changes: List[Dict[str, Any]]) -> any:
-    """Format campaign changes data for Gradio DataFrame display."""
-    if not changes:
+def format_grouped_changes_for_display(sessions: List[Dict[str, Any]]) -> any:
+    """Formats sessions into a table with a header row for each session."""
+    if not sessions:
         return None
     
-    # Convert to DataFrame with source table information
-    df_data = []
-    for change in changes:
-        df_data.append({
-            'Source Table': change.get('source_table', 'Unknown'),
-            'Campaign ID': change.get('campaign_id'),
-            'Field': change.get('field_name'),
-            'Old Value': str(change.get('old_value', ''))[:100] + ('...' if len(str(change.get('old_value', ''))) > 100 else ''),
-            'New Value': str(change.get('new_value', ''))[:100] + ('...' if len(str(change.get('new_value', ''))) > 100 else ''),
-            'Update Time': change.get('update_time'),
-            'User': change.get('update_user', 'N/A')
-        })
+    display_rows = []
+    skip_fields = {'update_time', 'performer', 'update_user'}
     
-    return pd.DataFrame(df_data)
+    # Each item in `sessions` is now a discrete session.
+    for session in sessions:
+        # Filter changes for this session
+        filtered_changes = [change for change in session['changes'] if change.get('field_name') not in skip_fields]
+        if not filtered_changes:
+            continue  # Skip this session if no changes remain after filtering
 
-def format_grouped_changes_table(grouped_changes: List[Dict[str, Any]]) -> any:
-    """Format grouped campaign changes for Gradio DataFrame display."""
-    if not grouped_changes:
-        return None
-    
-    df_data = []
-    for group in grouped_changes:
-        tables_involved = set()
-        fields_changed = []
-        users_involved = set()
-        
-        for change in group['changes']:
-            if change.get('source_table'):
-                tables_involved.add(change['source_table'])
-            if change.get('field_name'):
-                fields_changed.append(change['field_name'])
-            if change.get('update_user'):
-                users_involved.add(change['update_user'])
-        
-        df_data.append({
-            'Update Time': group['update_time'],
-            'Tables': ', '.join(sorted(tables_involved)) if tables_involved else 'N/A',
-            'Changes Count': group['change_count'],
-            'Fields Changed': ', '.join(fields_changed[:5]) + ('...' if len(fields_changed) > 5 else ''),
-            'Users': ', '.join(sorted(users_involved)) if users_involved else 'N/A',
-            'Summary': f"{group['change_count']} changes across {len(tables_involved)} table(s)"
+        display_table_name = session['source_table'].replace('_changes_log', '').replace('_', ' ').title()
+        date_style = "style='border-bottom:2px solid #bdbdbd; display:block;'"
+        summary_text = f"_{session['change_count']} changes in this session_"
+
+        display_rows.append({
+            'Date': f"<div {date_style}><b>{session['date']}</b></div>",
+            'Time': f"<b>{session['time']}</b>",
+            'User': f"<b>{session['user']}</b>",
+            'Table': f"<b>{display_table_name}</b>",
+            'Field': '', 
+            'Old Value': '', 
+            'New Value': f"<b>{summary_text}</b>"
         })
+
+        for change in filtered_changes:
+            display_rows.append({
+                'Date': '',
+                'Time': '',  # Do not display time in non-header rows
+                'User': '',
+                'Table': '',
+                'Field': change.get('field_name'),
+                'Old Value': str(change.get('old_value', ''))[:100],
+                'New Value': str(change.get('new_value', ''))[:100]
+            })
     
-    return pd.DataFrame(df_data)
+    if not display_rows:
+        return None
+        
+    df = pd.DataFrame(display_rows)
+    # Define the final column order: Date, Time, User, Table, Field, Old Value, New Value
+    df = df[['Date', 'Time', 'User', 'Table', 'Field', 'Old Value', 'New Value']]
+    return df
 
 def format_summary_stats(stats: Dict[str, Any], from_date: str, to_date: str, selected_tables: List[str]) -> str:
     """Format summary statistics as markdown text."""

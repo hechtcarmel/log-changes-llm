@@ -11,8 +11,7 @@ from gradio_calendar import Calendar
 from models import OpenAIModel, CampaignAnalysisResponse
 from database import DatabaseConnection, CampaignChangesQuery
 from utils.data_formatter import (
-    format_changes_table, 
-    format_grouped_changes_table,
+    format_grouped_changes_for_display,
     format_connection_status,
     format_summary_stats
 )
@@ -40,35 +39,35 @@ async def analyze_campaign_stream(
     selected_tables: List[str],
     openai_api_key: str,
     progress: gr.Progress = gr.Progress()
-) -> AsyncGenerator[Tuple[str, Any, Any, str, str, str], None]:
+) -> AsyncGenerator[Tuple[str, Any, str, str, str], None]:
     """Analyze campaign changes and stream AI insights."""
     
     # This function now acts as a generator, yielding updates.
     
     progress(0, desc="🔄 Starting analysis...")
-    yield "🔄 Starting analysis...", None, None, "🤖 AI analysis will appear here...", "", ""
+    yield "🔄 Starting analysis...", None, "🤖 AI analysis will appear here...", "", ""
     
     # Input validation
     if not username or not password:
-        yield "❌ Please provide database username and password", None, None, "", "", ""
+        yield "❌ Please provide database username and password", None, "", "", ""
         return
     if not campaign_id:
-        yield "❌ Please provide a campaign ID", None, None, "", "", ""
+        yield "❌ Please provide a campaign ID", None, "", "", ""
         return
     if not from_date or not to_date:
-        yield "❌ Please provide both from and to dates", None, None, "", "", ""
+        yield "❌ Please provide both from and to dates", None, "", "", ""
         return
     if not selected_tables:
-        yield "❌ Please select at least one table to query", None, None, "", "", ""
+        yield "❌ Please select at least one table to query", None, "", "", ""
         return
     if not openai_api_key:
-        yield "❌ Please provide an OpenAI API key", None, None, "", "", ""
+        yield "❌ Please provide an OpenAI API key", None, "", "", ""
         return
     
     try:
         campaign_id_int = int(campaign_id)
     except ValueError:
-        yield "❌ Campaign ID must be a number", None, None, "", "", ""
+        yield "❌ Campaign ID must be a number", None, "", "", ""
         return
     
     progress(0.1, desc="✅ Input validation completed")
@@ -82,11 +81,11 @@ async def analyze_campaign_stream(
             return False
 
     if not validate_date(from_date) or not validate_date(to_date):
-        yield "❌ Dates must be in YYYY-MM-DD format", None, None, "", "", ""
+        yield "❌ Dates must be in YYYY-MM-DD format", None, "", "", ""
         return
         
     if datetime.strptime(from_date, '%Y-%m-%d') > datetime.strptime(to_date, '%Y-%m-%d'):
-        yield "❌ From Date must be before To Date", None, None, "", "", ""
+        yield "❌ From Date must be before To Date", None, "", "", ""
         return
 
     # Initialize OpenAI model inside the function
@@ -97,7 +96,7 @@ async def analyze_campaign_stream(
         )
         # You could add a quick test here to validate the key if desired
     except Exception as e:
-        yield f"❌ Failed to initialize OpenAI model: {e}", None, None, "", "", ""
+        yield f"❌ Failed to initialize OpenAI model: {e}", None, "", "", ""
         return
     
     progress(0.2, desc="✅ Input validation completed")
@@ -112,12 +111,12 @@ async def analyze_campaign_stream(
         status_message = format_connection_status(connection_status)
         
         if not connection_status['success']:
-            yield status_message, None, None, "", "", ""
+            yield status_message, None, "", "", ""
             return
             
         progress(0.4, desc="✅ Database connection successful")
         if not db.connect(username, password):
-            yield "❌ Failed to connect to database", None, None, "", "", ""
+            yield "❌ Failed to connect to database", None, "", "", ""
             return
             
         progress(0.5, desc=f"🔍 Querying {len(selected_tables)} tables...")
@@ -125,25 +124,28 @@ async def analyze_campaign_stream(
         
         if not changes:
             db.disconnect()
-            yield status_message, None, None, f"No changes found for campaign ID {campaign_id}", "", ""
+            yield status_message, None, f"No changes found for campaign ID {campaign_id}", "", ""
             return
             
         progress(0.6, desc="✅ Data retrieved")
         
         # Prepare data and tables for display
-        grouped_changes = query_handler.group_changes_by_time(changes)
+        user_grouped_changes = query_handler.group_changes_by_user_and_date(changes)
+        changes_display_table = format_grouped_changes_for_display(user_grouped_changes)
+
+        # Group changes by time for AI analysis (remains the same)
+        time_grouped_changes = query_handler.group_changes_by_time(changes)
+
         stats = query_handler.get_campaign_summary_stats(changes)
         stats_text = format_summary_stats(stats, from_date, to_date, selected_tables)
-        changes_table = format_changes_table(changes)
-        grouped_table = format_grouped_changes_table(grouped_changes)
         
         progress(0.7, desc="📊 Formatting data for AI...")
-        ai_input_text = query_handler.format_changes_for_ai(grouped_changes)
+        ai_input_text = query_handler.format_changes_for_ai(time_grouped_changes)
         net_changes = query_handler.calculate_net_changes(changes)
         net_changes_text = query_handler.format_net_changes_for_ai(net_changes)
 
         # Yield pre-AI results first
-        yield status_message, changes_table, grouped_table, "🤖 Generating AI analysis...", stats_text, ai_input_text
+        yield status_message, changes_display_table, "🤖 Generating AI analysis...", stats_text, ai_input_text
         
         progress(0.8, desc="🤖 Streaming AI analysis...")
         
@@ -160,7 +162,7 @@ async def analyze_campaign_stream(
                 # Handle cases where the JSON is not yet complete
                 display_text = ai_full_response.replace("{", "{\n").replace("}", "\n}").replace(",", ",\n")
 
-            yield status_message, changes_table, grouped_table, display_text, stats_text, ai_input_text
+            yield status_message, changes_display_table, display_text, stats_text, ai_input_text
             await asyncio.sleep(0.05) # Small delay to allow UI to update smoothly
 
         # Final update with fully formatted response
@@ -172,7 +174,7 @@ async def analyze_campaign_stream(
         except (json.JSONDecodeError, KeyError) as e:
             final_summary = f"❌ AI analysis post-processing failed: {e}\n\nRaw response:\n{ai_full_response}"
 
-        yield status_message, changes_table, grouped_table, final_summary, stats_text, ai_input_text
+        yield status_message, changes_display_table, final_summary, stats_text, ai_input_text
         
         db.disconnect()
         progress(1.0, desc="✅ Analysis complete")
@@ -181,7 +183,7 @@ async def analyze_campaign_stream(
         if db.is_connected():
             db.disconnect()
         progress(0, desc="❌ Error occurred")
-        yield f"❌ Error: {str(e)}", None, None, "", "", ""
+        yield f"❌ Error: {str(e)}", None, "", "", ""
 
 def create_interface():
     """Create and configure the Gradio interface."""
@@ -220,6 +222,7 @@ def create_interface():
         .markdown-content li {
             margin-bottom: 0.5em;
         }
+        .centered-header th { text-align: center !important; }
         """
     ) as app:
         
@@ -310,18 +313,15 @@ def create_interface():
         
         # Results tabs
         with gr.Tabs():
-            with gr.Tab("📋 Grouped Changes"):
-                grouped_changes_table = gr.Dataframe(
-                    label="Changes Grouped by Time",
-                    interactive=False,
-                    wrap=True
-                )
-                
-            with gr.Tab("📊 All Changes"):
+            with gr.Tab("🗓️ Change History"):
                 all_changes_table = gr.Dataframe(
-                    label="All Campaign Changes",
+                    label="All Campaign Changes Grouped by Session",
                     interactive=False,
-                    wrap=True
+                    wrap=True,
+                    headers=['Date', 'Time', 'User', 'Table', 'Field', 'Old Value', 'New Value'],
+                    datatype=["markdown", "markdown", "markdown", "markdown", "markdown", "markdown", "markdown"],
+                    column_widths=["auto"] * 7,
+                    elem_classes=["centered-header"]
                 )
                 
             with gr.Tab("📈 Statistics"):
@@ -363,7 +363,6 @@ def create_interface():
             outputs=[
                 connection_status,
                 all_changes_table,
-                grouped_changes_table,
                 ai_analysis,
                 stats_output,
                 raw_ai_input

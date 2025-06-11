@@ -318,6 +318,52 @@ class CampaignChangesQuery:
         
         return grouped_changes
     
+    def group_changes_by_user_and_date(self, changes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Groups changes into discrete sessions based on date, user, a 1-minute time
+        window, and the source table.
+        
+        Args:
+            changes: List of individual change records.
+            
+        Returns:
+            A flat list of session dictionaries, sorted chronologically.
+        """
+        if not changes:
+            return []
+            
+        df = pd.DataFrame(changes)
+        
+        if 'update_time' not in df.columns or df['update_time'].isnull().all():
+            return []
+
+        df['update_time'] = pd.to_datetime(df['update_time'])
+        df['update_date'] = df['update_time'].dt.date
+        df['update_user'] = df['update_user'].fillna('System/Unknown')
+        # A 1-minute time window helps define a session of rapid changes.
+        df['time_group'] = df['update_time'].dt.floor('1T')
+
+        sessions = []
+        # A session is a unique combination of date, user, time window, and table.
+        for (update_date, user, time_group, table), group in df.groupby(
+            ['update_date', 'update_user', 'time_group', 'source_table']
+        ):
+            sorted_changes = group.sort_values('update_time').to_dict('records')
+            session = {
+                'date': update_date.strftime('%Y-%m-%d'),
+                'user': user,
+                'time': time_group.strftime('%H:%M'),
+                'source_table': table,
+                'change_count': len(group),
+                'changes': sorted_changes
+            }
+            sessions.append(session)
+            
+        # Sort sessions chronologically, most recent first.
+        sessions.sort(key=lambda s: (s['date'], s['time']), reverse=True)
+        
+        return sessions
+    
     def format_changes_for_ai(self, grouped_changes: List[Dict[str, Any]]) -> str:
         """
         Format grouped changes into a readable text for AI analysis.
