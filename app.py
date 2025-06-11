@@ -5,6 +5,7 @@ import logging
 from datetime import datetime, date
 from dotenv import load_dotenv
 from typing import Dict, List, Any, Optional, Tuple
+from gradio_calendar import Calendar
 
 from models import OpenAIModel
 from database import DatabaseConnection, CampaignChangesQuery
@@ -34,9 +35,12 @@ async def analyze_campaign(
     password: str,
     campaign_id: str,
     from_date: str,
-    to_date: str
+    to_date: str,
+    progress: gr.Progress = gr.Progress()
 ) -> Tuple[str, any, any, str, str, str]:
     """Analyze campaign changes and generate AI insights."""
+    
+    progress(0, desc="🔄 Starting analysis...")
     
     # Input validation
     if not username or not password:
@@ -52,6 +56,8 @@ async def analyze_campaign(
         campaign_id_int = int(campaign_id)
     except ValueError:
         return "❌ Campaign ID must be a number", None, None, "", "", ""
+    
+    progress(0.1, desc="✅ Input validation completed")
     
     # Date validation
     def validate_date(date_str: str, field_name: str) -> bool:
@@ -78,11 +84,15 @@ async def analyze_campaign(
     if not openai_model:
         return "❌ OpenAI API key not configured", None, None, "", "", ""
     
+    progress(0.2, desc="✅ Date validation completed")
+    
     # Database operations
     db = DatabaseConnection()
     query_handler = CampaignChangesQuery(db)
     
     try:
+        progress(0.3, desc="🔌 Testing database connection...")
+        
         # Test connection
         connection_status = db.test_connection(username, password)
         status_message = format_connection_status(connection_status)
@@ -90,9 +100,13 @@ async def analyze_campaign(
         if not connection_status['success']:
             return status_message, None, None, "", "", ""
         
+        progress(0.4, desc="✅ Database connection successful")
+        
         # Connect and query
         if not db.connect(username, password):
             return "❌ Failed to connect to database", None, None, "", "", ""
+        
+        progress(0.5, desc="🔍 Querying campaign changes from database...")
         
         # Get campaign changes
         changes = query_handler.get_campaign_changes(campaign_id_int, from_date, to_date)
@@ -101,6 +115,8 @@ async def analyze_campaign(
             db.disconnect()
             return status_message, None, None, "No changes found for this campaign ID in the specified date range", "", ""
         
+        progress(0.6, desc="✅ Campaign data retrieved successfully")
+        
         # Group changes by time
         grouped_changes = query_handler.group_changes_by_time(changes)
         
@@ -108,8 +124,12 @@ async def analyze_campaign(
         stats = query_handler.get_campaign_summary_stats(changes)
         stats_text = format_summary_stats(stats, from_date, to_date)
         
+        progress(0.7, desc="📊 Processing and formatting data...")
+        
         # Format data for AI analysis
         ai_input_text = query_handler.format_changes_for_ai(grouped_changes)
+        
+        progress(0.8, desc="🤖 Analyzing data with AI (this may take a moment)...")
         
         # Generate AI analysis
         try:
@@ -118,11 +138,15 @@ async def analyze_campaign(
         except Exception as e:
             ai_summary = f"❌ AI analysis failed: {str(e)}"
         
+        progress(0.9, desc="📋 Preparing final results...")
+        
         # Format tables for display
         changes_table = format_changes_table(changes)
         grouped_table = format_grouped_changes_table(grouped_changes)
         
         db.disconnect()
+        
+        progress(1.0, desc="✅ Analysis completed successfully!")
         
         return (
             status_message,
@@ -136,6 +160,7 @@ async def analyze_campaign(
     except Exception as e:
         if db.is_connected():
             db.disconnect()
+        progress(0, desc="❌ Error occurred during analysis")
         return f"❌ Error: {str(e)}", None, None, "", "", ""
 
 # Get today's date as default
@@ -168,20 +193,18 @@ with gr.Blocks(title="Campaign Changes Analyzer", theme=gr.themes.Soft()) as app
             )
             
             with gr.Row():
-                from_date_input = gr.Textbox(
-                    label="From Date (Required)",
-                    placeholder="YYYY-MM-DD",
+                from_date_input = Calendar(
                     value=today,
-                    type="text",
-                    info="Start date for filtering changes"
+                    type="string",
+                    label="From Date (Required)",
+                    info="Select start date for filtering changes"
                 )
                 
-                to_date_input = gr.Textbox(
-                    label="To Date (Required)", 
-                    placeholder="YYYY-MM-DD",
+                to_date_input = Calendar(
                     value=today,
-                    type="text",
-                    info="End date for filtering changes"
+                    type="string", 
+                    label="To Date (Required)",
+                    info="Select end date for filtering changes"
                 )
             
             analyze_button = gr.Button("🔍 Analyze Campaign Changes", variant="primary", size="lg")
