@@ -23,13 +23,13 @@ load_dotenv()
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
-# Initialize OpenAI model
-openai_model = None
-if os.getenv("OPENAI_API_KEY"):
-    openai_model = OpenAIModel(
-        api_key=os.getenv("OPENAI_API_KEY"),
-        model_name=os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-    )
+# Remove the global initialization of the OpenAI model
+# openai_model = None
+# if os.getenv("OPENAI_API_KEY"):
+#     openai_model = OpenAIModel(
+#         api_key=os.getenv("OPENAI_API_KEY"),
+#         model_name=os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+#     )
 
 async def analyze_campaign_stream(
     username: str,
@@ -38,6 +38,7 @@ async def analyze_campaign_stream(
     from_date: str,
     to_date: str,
     selected_tables: List[str],
+    openai_api_key: str,
     progress: gr.Progress = gr.Progress()
 ) -> AsyncGenerator[Tuple[str, Any, Any, str, str, str], None]:
     """Analyze campaign changes and stream AI insights."""
@@ -59,6 +60,9 @@ async def analyze_campaign_stream(
         return
     if not selected_tables:
         yield "❌ Please select at least one table to query", None, None, "", "", ""
+        return
+    if not openai_api_key:
+        yield "❌ Please provide an OpenAI API key", None, None, "", "", ""
         return
     
     try:
@@ -85,11 +89,18 @@ async def analyze_campaign_stream(
         yield "❌ From Date must be before To Date", None, None, "", "", ""
         return
 
-    if not openai_model:
-        yield "❌ OpenAI API key not configured", None, None, "", "", ""
+    # Initialize OpenAI model inside the function
+    try:
+        openai_model = OpenAIModel(
+            api_key=openai_api_key,
+            model_name=os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        )
+        # You could add a quick test here to validate the key if desired
+    except Exception as e:
+        yield f"❌ Failed to initialize OpenAI model: {e}", None, None, "", "", ""
         return
     
-    progress(0.2, desc="✅ Date validation completed")
+    progress(0.2, desc="✅ Input validation completed")
     
     db = DatabaseConnection()
     query_handler = CampaignChangesQuery(db)
@@ -220,7 +231,20 @@ def create_interface():
         
         with gr.Row():
             with gr.Column(scale=3):
-                gr.Markdown("### 🔐 Database Connection")
+                gr.Markdown("### 🔐 API & Database Credentials")
+                
+                # Check for API key in environment
+                api_key_from_env = os.getenv("OPENAI_API_KEY")
+                
+                openai_api_key = gr.Textbox(
+                    label="OpenAI API Key",
+                    placeholder="Enter your OpenAI API key if not in .env",
+                    value=api_key_from_env,
+                    type="password",
+                    visible=True, # Always visible
+                    info="Required. Loaded from .env if available."
+                )
+
                 with gr.Row():
                     username_input = gr.Textbox(
                         label="Username",
@@ -314,13 +338,13 @@ def create_interface():
                     value="Raw data will appear here after analysis..."
                 )
 
-        async def analysis_wrapper(username, password, campaign_id, from_date, to_date, table_selection_choices, progress=gr.Progress(track_tqdm=True)):
+        async def analysis_wrapper(username, password, campaign_id, from_date, to_date, table_selection_choices, openai_api_key_input, progress=gr.Progress(track_tqdm=True)):
             # Get the actual table names from the choices
             table_names_list = [table_names[table_choices.index(choice)] for choice in table_selection_choices]
             
             # Use an async for loop to iterate through the generator
             async for outputs in analyze_campaign_stream(
-                username, password, campaign_id, from_date, to_date, table_names_list, progress
+                username, password, campaign_id, from_date, to_date, table_names_list, openai_api_key_input, progress
             ):
                 yield outputs
 
@@ -333,7 +357,8 @@ def create_interface():
                 campaign_id_input,
                 from_date_input,
                 to_date_input,
-                table_selection
+                table_selection,
+                openai_api_key
             ],
             outputs=[
                 connection_status,
@@ -348,11 +373,15 @@ def create_interface():
     return app
 
 if __name__ == "__main__":
+    import multiprocessing
+    multiprocessing.freeze_support()
+    
     app = create_interface()
     app.launch(
-        server_name="0.0.0.0",
+        server_name="127.0.0.1",
         server_port=7861,
         show_error=True,
-        share=False
+        share=False,
+        inbrowser=True
     ) 
     
