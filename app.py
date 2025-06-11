@@ -2,12 +2,13 @@ import os
 import gradio as gr
 import asyncio
 import logging
+import json
 from datetime import datetime, date
 from dotenv import load_dotenv
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional, Tuple, AsyncGenerator
 from gradio_calendar import Calendar
 
-from models import OpenAIModel
+from models import OpenAIModel, CampaignAnalysisResponse
 from database import DatabaseConnection, CampaignChangesQuery
 from utils.data_formatter import (
     format_changes_table, 
@@ -30,7 +31,7 @@ if os.getenv("OPENAI_API_KEY"):
         model_name=os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     )
 
-async def analyze_campaign(
+async def analyze_campaign_stream(
     username: str,
     password: str,
     campaign_id: str,
@@ -38,134 +39,136 @@ async def analyze_campaign(
     to_date: str,
     selected_tables: List[str],
     progress: gr.Progress = gr.Progress()
-) -> Tuple[str, any, any, str, str, str]:
-    """Analyze campaign changes and generate AI insights."""
+) -> AsyncGenerator[Tuple[str, Any, Any, str, str, str], None]:
+    """Analyze campaign changes and stream AI insights."""
+    
+    # This function now acts as a generator, yielding updates.
     
     progress(0, desc="🔄 Starting analysis...")
+    yield "🔄 Starting analysis...", None, None, "🤖 AI analysis will appear here...", "", ""
     
     # Input validation
     if not username or not password:
-        return "❌ Please provide database username and password", None, None, "", "", ""
-    
+        yield "❌ Please provide database username and password", None, None, "", "", ""
+        return
     if not campaign_id:
-        return "❌ Please provide a campaign ID", None, None, "", "", ""
-    
+        yield "❌ Please provide a campaign ID", None, None, "", "", ""
+        return
     if not from_date or not to_date:
-        return "❌ Please provide both from and to dates", None, None, "", "", ""
-    
+        yield "❌ Please provide both from and to dates", None, None, "", "", ""
+        return
     if not selected_tables:
-        return "❌ Please select at least one table to query", None, None, "", "", ""
+        yield "❌ Please select at least one table to query", None, None, "", "", ""
+        return
     
     try:
         campaign_id_int = int(campaign_id)
     except ValueError:
-        return "❌ Campaign ID must be a number", None, None, "", "", ""
+        yield "❌ Campaign ID must be a number", None, None, "", "", ""
+        return
     
     progress(0.1, desc="✅ Input validation completed")
     
-    # Date validation
-    def validate_date(date_str: str, field_name: str) -> bool:
+    # Date validation can remain synchronous as it's quick
+    def validate_date(date_str: str) -> bool:
         try:
             datetime.strptime(date_str, '%Y-%m-%d')
             return True
         except ValueError:
             return False
-    
-    if not validate_date(from_date, "From Date"):
-        return "❌ From Date must be in YYYY-MM-DD format", None, None, "", "", ""
-    
-    if not validate_date(to_date, "To Date"):
-        return "❌ To Date must be in YYYY-MM-DD format", None, None, "", "", ""
-    
-    try:
-        from_dt = datetime.strptime(from_date, '%Y-%m-%d')
-        to_dt = datetime.strptime(to_date, '%Y-%m-%d')
-        if from_dt > to_dt:
-            return "❌ From Date must be before To Date", None, None, "", "", ""
-    except ValueError:
-        pass
-    
+
+    if not validate_date(from_date) or not validate_date(to_date):
+        yield "❌ Dates must be in YYYY-MM-DD format", None, None, "", "", ""
+        return
+        
+    if datetime.strptime(from_date, '%Y-%m-%d') > datetime.strptime(to_date, '%Y-%m-%d'):
+        yield "❌ From Date must be before To Date", None, None, "", "", ""
+        return
+
     if not openai_model:
-        return "❌ OpenAI API key not configured", None, None, "", "", ""
+        yield "❌ OpenAI API key not configured", None, None, "", "", ""
+        return
     
     progress(0.2, desc="✅ Date validation completed")
     
-    # Database operations
     db = DatabaseConnection()
     query_handler = CampaignChangesQuery(db)
     
     try:
+        # DB connection and initial query
         progress(0.3, desc="🔌 Testing database connection...")
-        
-        # Test connection
         connection_status = db.test_connection(username, password)
         status_message = format_connection_status(connection_status)
         
         if not connection_status['success']:
-            return status_message, None, None, "", "", ""
-        
+            yield status_message, None, None, "", "", ""
+            return
+            
         progress(0.4, desc="✅ Database connection successful")
-        
-        # Connect and query
         if not db.connect(username, password):
-            return "❌ Failed to connect to database", None, None, "", "", ""
-        
-        progress(0.5, desc=f"🔍 Querying {len(selected_tables)} tables for campaign changes...")
-        
-        # Get campaign changes from selected tables
+            yield "❌ Failed to connect to database", None, None, "", "", ""
+            return
+            
+        progress(0.5, desc=f"🔍 Querying {len(selected_tables)} tables...")
         changes = query_handler.get_campaign_changes(campaign_id_int, from_date, to_date, selected_tables)
         
         if not changes:
             db.disconnect()
-            return status_message, None, None, f"No changes found for campaign ID {campaign_id} in the specified date range from selected tables", "", ""
+            yield status_message, None, None, f"No changes found for campaign ID {campaign_id}", "", ""
+            return
+            
+        progress(0.6, desc="✅ Data retrieved")
         
-        progress(0.6, desc="✅ Campaign data retrieved successfully")
-        
-        # Group changes by time
+        # Prepare data and tables for display
         grouped_changes = query_handler.group_changes_by_time(changes)
-        
-        # Generate summary statistics
         stats = query_handler.get_campaign_summary_stats(changes)
         stats_text = format_summary_stats(stats, from_date, to_date, selected_tables)
-        
-        progress(0.7, desc="📊 Processing and formatting data...")
-        
-        # Format data for AI analysis
-        ai_input_text = query_handler.format_changes_for_ai(grouped_changes)
-        
-        progress(0.8, desc="🤖 Analyzing data with AI (this may take a moment)...")
-        
-        # Generate AI analysis
-        try:
-            ai_response = await openai_model.analyze_campaign_changes(ai_input_text, campaign_id_int)
-            ai_summary = ai_response.to_formatted_text()
-        except Exception as e:
-            ai_summary = f"❌ AI analysis failed: {str(e)}"
-        
-        progress(0.9, desc="📋 Preparing final results...")
-        
-        # Format tables for display
         changes_table = format_changes_table(changes)
         grouped_table = format_grouped_changes_table(grouped_changes)
         
+        progress(0.7, desc="📊 Formatting data for AI...")
+        ai_input_text = query_handler.format_changes_for_ai(grouped_changes)
+        
+        # Yield pre-AI results first
+        yield status_message, changes_table, grouped_table, "🤖 Generating AI analysis...", stats_text, ai_input_text
+        
+        progress(0.8, desc="🤖 Streaming AI analysis...")
+        
+        # Stream AI analysis
+        ai_full_response = ""
+        async for chunk in openai_model.analyze_campaign_changes(ai_input_text, campaign_id_int):
+            ai_full_response += chunk
+            # Attempt to pretty-print the partial JSON
+            try:
+                # This helps in formatting the streaming JSON nicely
+                parsed_json = json.loads(ai_full_response)
+                display_text = CampaignAnalysisResponse.from_dict(parsed_json).to_formatted_text()
+            except json.JSONDecodeError:
+                # Handle cases where the JSON is not yet complete
+                display_text = ai_full_response.replace("{", "{\n").replace("}", "\n}").replace(",", ",\n")
+
+            yield status_message, changes_table, grouped_table, display_text, stats_text, ai_input_text
+            await asyncio.sleep(0.05) # Small delay to allow UI to update smoothly
+
+        # Final update with fully formatted response
+        progress(0.9, desc="📋 Finalizing results...")
+        try:
+            final_data = json.loads(ai_full_response)
+            final_response = CampaignAnalysisResponse.from_dict(final_data)
+            final_summary = final_response.to_formatted_text()
+        except (json.JSONDecodeError, KeyError) as e:
+            final_summary = f"❌ AI analysis post-processing failed: {e}\n\nRaw response:\n{ai_full_response}"
+
+        yield status_message, changes_table, grouped_table, final_summary, stats_text, ai_input_text
+        
         db.disconnect()
-        
-        progress(1.0, desc="✅ Analysis completed successfully!")
-        
-        return (
-            status_message,
-            changes_table,
-            grouped_table, 
-            ai_summary,
-            stats_text,
-            ai_input_text
-        )
-        
+        progress(1.0, desc="✅ Analysis complete")
+
     except Exception as e:
         if db.is_connected():
             db.disconnect()
-        progress(0, desc="❌ Error occurred during analysis")
-        return f"❌ Error: {str(e)}", None, None, "", "", ""
+        progress(0, desc="❌ Error occurred")
+        yield f"❌ Error: {str(e)}", None, None, "", "", ""
 
 def create_interface():
     """Create and configure the Gradio interface."""
@@ -309,18 +312,19 @@ def create_interface():
                     value="Raw data will appear here after analysis..."
                 )
 
+        async def analysis_wrapper(username, password, campaign_id, from_date, to_date, table_selection_choices, progress=gr.Progress(track_tqdm=True)):
+            # Get the actual table names from the choices
+            table_names_list = [table_names[table_choices.index(choice)] for choice in table_selection_choices]
+            
+            # Use an async for loop to iterate through the generator
+            async for outputs in analyze_campaign_stream(
+                username, password, campaign_id, from_date, to_date, table_names_list, progress
+            ):
+                yield outputs
+
         # Event handlers
         analyze_button.click(
-            fn=lambda username, password, campaign_id, from_date, to_date, table_selection: asyncio.run(
-                analyze_campaign(
-                    username, 
-                    password, 
-                    campaign_id, 
-                    from_date, 
-                    to_date,
-                    [table_names[table_choices.index(choice)] for choice in table_selection]
-                )
-            ),
+            fn=analysis_wrapper,
             inputs=[
                 username_input,
                 password_input, 

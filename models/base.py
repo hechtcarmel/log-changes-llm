@@ -17,6 +17,16 @@ class CampaignAnalysisResponse:
         self.key_insights = key_insights or []
         self.raw_response = raw_response
     
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'CampaignAnalysisResponse':
+        """Create a response object from a dictionary."""
+        return cls(
+            summary=data.get("summary"),
+            change_history=data.get("change_history"),
+            key_insights=data.get("key_insights", []),
+            raw_response=json.dumps(data)
+        )
+    
     def to_json(self) -> str:
         """Convert response to JSON string."""
         return json.dumps({

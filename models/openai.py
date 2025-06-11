@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, AsyncGenerator
 import json
 from openai import AsyncOpenAI
 from .base import BaseModel, CampaignAnalysisResponse
@@ -19,37 +19,29 @@ class OpenAIModel(BaseModel):
         self, 
         changes_text: str,
         campaign_id: int
-    ) -> CampaignAnalysisResponse:
+    ) -> AsyncGenerator[str, None]:
         """Analyze campaign changes and provide insights using OpenAI model."""
         system_prompt = get_system_prompt()
         user_prompt = get_user_prompt(changes_text, campaign_id)
         
         try:
-            response = await self.client.chat.completions.create(
+            stream = await self.client.chat.completions.create(
                 model=self.model_name,
                 response_format={"type": "json_object"},
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
-                ]
+                ],
+                stream=True
             )
             
-            raw_response = response.choices[0].message.content
-            
-            try:
-                output = json.loads(raw_response)
-                
-                return CampaignAnalysisResponse(
-                    summary=output.get("summary"),
-                    change_history=output.get("change_history"),
-                    key_insights=output.get("key_insights", []),
-                    raw_response=raw_response
-                )
-            except (json.JSONDecodeError, KeyError):
-                return CampaignAnalysisResponse(raw_response=raw_response)
+            async for chunk in stream:
+                content = chunk.choices[0].delta.content
+                if content:
+                    yield content
                 
         except Exception as e:
             print(f"Error calling OpenAI API: {str(e)}")
-            return CampaignAnalysisResponse()
+            yield json.dumps({"error": f"Error calling OpenAI API: {str(e)}"})
     
  
