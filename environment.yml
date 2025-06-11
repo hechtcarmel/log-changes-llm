@@ -1,0 +1,17 @@
+name: log_changes
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+    - gradio>=5.30.0
+    - openai>=1.80.0
+    - httpx>=0.28.0
+    - pydantic>=2.11.0
+    - jinja2>=3.1.0
+    - python-dotenv>=1.0.0
+    - pymysql>=1.1.0
+    - pandas>=2.0.0
+    - asyncio-throttle>=1.0.0
