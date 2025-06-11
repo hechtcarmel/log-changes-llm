@@ -13,7 +13,7 @@ ANALYSIS FRAMEWORK:
 OUTPUT FORMAT:
 You must respond with a valid JSON object containing exactly these fields:
 {
-  "summary": "A concise 2-3 sentence overview of the overall changes and their significance",
+  "summary": "A factual, human-readable summary of the net changes. List the fields that were changed and their final state, based *only* on the 'Overall Net Changes Summary' provided. Do not add any interpretation, reasoning, or significance. For example, if a budget changed from $100 to $200, state 'The budget was changed from $100 to $200.'",
   "change_history": "A detailed, chronologically formatted record of all changes using the exact format specified below",
   "key_insights": ["List of 3-5 strategic insights about the changes and their business implications"]
 }
@@ -88,16 +88,21 @@ Remember to:
 
     return system_prompt
 
-def get_user_prompt(changes_text: str, campaign_id: int) -> str:
+def get_user_prompt(changes_text: str, campaign_id: int, net_changes_text: str) -> str:
     """Generate the user prompt with the campaign changes to analyze."""
     
     return f"""Campaign ID: {campaign_id}
 
-Campaign Changes Data:
+Overall Net Changes Summary:
+{net_changes_text}
+
+Detailed Chronological Change History:
 {changes_text}
 
 ANALYSIS REQUIREMENTS:
 Provide a comprehensive analysis following the exact JSON format specified in the system prompt.
+
+Your main task is to generate the 'summary' field. This summary should be a direct, human-readable statement of the facts from the 'Overall Net Changes Summary'. It must not contain any analysis, interpretation, or strategic insights; that is what the 'key_insights' field is for. Simply restate the net changes in full sentences.
 
 CRITICAL: For the change_history field, you MUST:
 1. Extract the exact datetime, user, field names, old values, and new values from the data
@@ -115,4 +120,6 @@ Respond ONLY with a valid JSON object containing: summary, change_history, and k
 
 def get_prompt(changes_text: str, campaign_id: int) -> str:
     """Legacy function that combines system and user prompts for backward compatibility."""
-    return get_system_prompt() + "\n\nNow analyze this campaign:\n" + get_user_prompt(changes_text, campaign_id) 
+    # This function would need to be updated if used, to handle net_changes_text
+    # For now, assuming it's not the primary path
+    return get_system_prompt() + "\n\nNow analyze this campaign:\n" + get_user_prompt(changes_text, campaign_id, "Net changes not calculated.") 

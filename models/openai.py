@@ -18,11 +18,12 @@ class OpenAIModel(BaseModel):
     async def analyze_campaign_changes(
         self, 
         changes_text: str,
-        campaign_id: int
+        campaign_id: int,
+        net_changes_text: str
     ) -> AsyncGenerator[str, None]:
         """Analyze campaign changes and provide insights using OpenAI model."""
         system_prompt = get_system_prompt()
-        user_prompt = get_user_prompt(changes_text, campaign_id)
+        user_prompt = get_user_prompt(changes_text, campaign_id, net_changes_text)
         
         try:
             stream = await self.client.chat.completions.create(

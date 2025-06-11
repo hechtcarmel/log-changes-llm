@@ -418,4 +418,60 @@ class CampaignChangesQuery:
             }
         }
         
-        return stats 
+        return stats
+
+    def calculate_net_changes(self, changes: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+        """
+        Calculate the net change for each field from its first old value to its final new value.
+
+        Args:
+            changes: List of change records.
+
+        Returns:
+            A dictionary where keys are field names and values are dicts
+            with "from", "to", and "change_count".
+        """
+        if not changes:
+            return {}
+
+        df = pd.DataFrame(changes)
+        if 'update_time' not in df.columns:
+            return {}
+
+        df['update_time'] = pd.to_datetime(df['update_time'])
+        df = df.sort_values(by='update_time').reset_index()
+
+        net_changes = {}
+        for field, group in df.groupby('field_name'):
+            first_change = group.iloc[0]
+            last_change = group.iloc[-1]
+            
+            # Skip if old and new values are the same
+            if first_change['old_value'] == last_change['new_value']:
+                continue
+
+            net_changes[field] = {
+                'from': first_change['old_value'],
+                'to': last_change['new_value'],
+                'change_count': len(group)
+            }
+            
+        return net_changes
+
+    def format_net_changes_for_ai(self, net_changes: Dict[str, Dict[str, Any]]) -> str:
+        """Formats the net changes into a string for the AI prompt."""
+        if not net_changes:
+            return "No significant net changes detected across all fields."
+
+        output = []
+        for field, values in net_changes.items():
+            if values['change_count'] > 1:
+                output.append(
+                    f"- {field}: Changed from \"{values['from']}\" to \"{values['to']}\" (across {values['change_count']} changes)."
+                )
+            else:
+                output.append(
+                    f"- {field}: Changed from \"{values['from']}\" to \"{values['to']}\"."
+                )
+        
+        return "\n".join(output) 

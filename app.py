@@ -128,7 +128,9 @@ async def analyze_campaign_stream(
         
         progress(0.7, desc="📊 Formatting data for AI...")
         ai_input_text = query_handler.format_changes_for_ai(grouped_changes)
-        
+        net_changes = query_handler.calculate_net_changes(changes)
+        net_changes_text = query_handler.format_net_changes_for_ai(net_changes)
+
         # Yield pre-AI results first
         yield status_message, changes_table, grouped_table, "🤖 Generating AI analysis...", stats_text, ai_input_text
         
@@ -136,7 +138,7 @@ async def analyze_campaign_stream(
         
         # Stream AI analysis
         ai_full_response = ""
-        async for chunk in openai_model.analyze_campaign_changes(ai_input_text, campaign_id_int):
+        async for chunk in openai_model.analyze_campaign_changes(ai_input_text, campaign_id_int, net_changes_text):
             ai_full_response += chunk
             # Attempt to pretty-print the partial JSON
             try:
