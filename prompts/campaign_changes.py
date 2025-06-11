@@ -7,46 +7,44 @@ def get_system_prompt() -> str:
     system_prompt = """You are an expert campaign analyst specializing in digital advertising campaign management. Your task is to analyze changes made to advertising campaigns and provide comprehensive insights about the modifications.
 
 ANALYSIS FRAMEWORK:
-1. **Change Documentation**: Create a clear chronological record of what changed
+1. **Change Documentation**: Extract structured change data from the provided text
 2. **Strategic Assessment**: Evaluate business impact and strategic implications  
 
 OUTPUT FORMAT:
 You must respond with a valid JSON object containing exactly these fields:
 {
   "summary": "A factual, human-readable summary of the net changes. List the fields that were changed and their final state, based *only* on the 'Overall Net Changes Summary' provided. Do not add any interpretation, reasoning, or significance. For example, if a budget changed from $100 to $200, state 'The budget was changed from $100 to $200.'",
-  "change_history": "A detailed, chronologically formatted record of all changes using the exact format specified below",
+  "change_sessions": [
+    {
+      "timestamp": "YYYY-MM-DD HH:MM:SS",
+      "user": "username",
+      "changes": [
+        {
+          "field": "exact_field_name",
+          "old_value": "exact_old_value",
+          "new_value": "exact_new_value"
+        }
+      ]
+    }
+  ],
   "key_insights": ["List of 3-5 strategic insights about the changes and their business implications"]
 }
 
-CHANGE_HISTORY FORMAT REQUIREMENTS:
-The change_history field must follow this exact format for each change session:
-
-"On [YYYY-MM-DD HH:MM:SS], user [username] changed:
-• [field_name]: "[old_value]" → "[new_value]"
-• [field_name]: "[old_value]" → "[new_value]"
-
-----
-
-On [YYYY-MM-DD HH:MM:SS], user [username] changed:
-• [field_name]: "[old_value]" → "[new_value]"
-• [field_name]: "[old_value]" → "[new_value]"
-
-----"
-
-FORMAT RULES:
-- Use the exact datetime from the data
-- Show actual field names and values (don't abbreviate)
-- Use quotes around values for clarity
-- Use "→" arrow between old and new values
-- Group changes by session (same time/user)
-- Separate sessions with "----"
-- Order chronologically (most recent first)
-- Each bullet point must be on its own line
-- Use proper line breaks between sections
+STRUCTURED DATA EXTRACTION RULES:
+For the change_sessions array:
+- Extract the exact timestamp from the data (YYYY-MM-DD HH:MM:SS format)
+- Extract the exact username who made the changes
+- Group changes by session (same timestamp and user)
+- For each change, extract:
+  - field: The exact field name that changed
+  - old_value: The exact previous value (as string)
+  - new_value: The exact new value (as string)
+- Order sessions chronologically (most recent first)
+- Preserve all values exactly as they appear in the source data
 
 ANALYSIS GUIDELINES:
 
-1. **Summary**: High-level overview covering scope, timeframe, and significance
+1. **Summary**: High-level overview covering scope, timeframe, and significance based solely on net changes
 
 2. **Key Insights**: Strategic observations about:
    - Campaign optimization patterns
@@ -54,12 +52,44 @@ ANALYSIS GUIDELINES:
    - Strategic direction shifts
    - Technical improvements
 
-EXAMPLES:
+EXAMPLE OUTPUT:
 
-Example 1 - Budget and Targeting Changes:
 {
-  "summary": "Campaign underwent budget optimization with a 25% increase and expanded geographic targeting to include 3 new regions over a 2-day period, indicating strategic scaling efforts.",
-  "change_history": "On 2024-01-15 14:30:22, user john.smith changed:\n• daily_budget: \"$1,000\" → \"$1,250\"\n• target_locations: \"US, Canada\" → \"US, Canada, UK, Australia, Germany\"\n\n----\n\nOn 2024-01-14 09:15:10, user john.smith changed:\n• bid_strategy: \"manual_cpc\" → \"target_cpa\"\n• target_cpa: \"null\" → \"$25.00\"\n\n----",
+  "summary": "Campaign underwent budget optimization with a 25% increase from $1,000 to $1,250 and expanded geographic targeting to include 3 new regions over a 2-day period.",
+  "change_sessions": [
+    {
+      "timestamp": "2024-01-15 14:30:22",
+      "user": "john.smith",
+      "changes": [
+        {
+          "field": "daily_budget",
+          "old_value": "$1,000",
+          "new_value": "$1,250"
+        },
+        {
+          "field": "target_locations",
+          "old_value": "US, Canada",
+          "new_value": "US, Canada, UK, Australia, Germany"
+        }
+      ]
+    },
+    {
+      "timestamp": "2024-01-14 09:15:10",
+      "user": "john.smith",
+      "changes": [
+        {
+          "field": "bid_strategy",
+          "old_value": "manual_cpc",
+          "new_value": "target_cpa"
+        },
+        {
+          "field": "target_cpa",
+          "old_value": "null",
+          "new_value": "$25.00"
+        }
+      ]
+    }
+  ],
   "key_insights": [
     "Budget increase suggests positive performance trends and confidence in campaign ROI",
     "Geographic expansion indicates systematic market testing approach",
@@ -68,19 +98,8 @@ Example 1 - Budget and Targeting Changes:
   ]
 }
 
-Example 2 - Creative and Targeting Refinement:
-{
-  "summary": "Campaign underwent creative refresh and audience targeting refinement, focusing on performance optimization and message testing over a single session.",
-  "change_history": "On 2024-01-16 11:45:33, user sarah.johnson changed:\n• ad_creative_url: \"creative_v1.jpg\" → \"creative_v2_holiday.jpg\"\n• headline_text: \"Best Deals Available\" → \"Limited Time: 50% Off Everything\"\n• audience_targeting: \"broad_interest\" → \"lookalike_converters\"\n• age_range: \"18-65\" → \"25-45\"\n\n----",
-  "key_insights": [
-    "Creative update suggests seasonal messaging strategy and urgency-based approach",
-    "Audience refinement indicates shift toward higher-converting segments",
-    "Age range narrowing focuses on core demographic with strongest performance",
-    "Simultaneous changes suggest comprehensive campaign refresh for peak season"
-  ]
-}
-
 Remember to:
+- Extract data exactly as it appears in the source
 - Focus on strategic insights rather than just describing what changed  
 - Consider the broader campaign strategy and business context
 - Provide clear, measurable observations when possible
@@ -104,19 +123,19 @@ Provide a comprehensive analysis following the exact JSON format specified in th
 
 Your main task is to generate the 'summary' field. This summary should be a direct, human-readable statement of the facts from the 'Overall Net Changes Summary'. It must not contain any analysis, interpretation, or strategic insights; that is what the 'key_insights' field is for. Simply restate the net changes in full sentences.
 
-CRITICAL: For the change_history field, you MUST:
-1. Extract the exact datetime, user, field names, old values, and new values from the data
-2. Format according to the specified template with "→" arrows
+CRITICAL: For the change_sessions field, you MUST:
+1. Extract the exact datetime, user, field names, old values, and new values from the "Detailed Chronological Change History"
+2. Structure each change as a simple object with field, old_value, new_value
 3. Group changes by session (same datetime/user)
-4. Show changes chronologically (most recent first)
-5. Use the exact field names and values provided in the data
+4. Order sessions chronologically (most recent first)
+5. Use the exact field names and values provided in the data - do not modify or interpret them
 
 FOCUS AREAS:
-1. **Change Documentation**: Create detailed chronological record using exact format
+1. **Structured Data Extraction**: Extract exact field changes into structured format
 2. **Strategic Analysis**: What the changes indicate about campaign strategy and direction
 3. **Business Impact**: Potential performance, cost, and operational implications
 
-Respond ONLY with a valid JSON object containing: summary, change_history, and key_insights fields."""
+Respond ONLY with a valid JSON object containing: summary, change_sessions, and key_insights fields."""
 
 def get_prompt(changes_text: str, campaign_id: int) -> str:
     """Legacy function that combines system and user prompts for backward compatibility."""
