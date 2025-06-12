@@ -1,6 +1,23 @@
 from typing import List, Dict, Any
 import pandas as pd
 
+def get_performer_or_user(data: Dict[str, Any]) -> str:
+    """
+    Gets the performer if it exists, otherwise the update_user.
+    Returns empty string if neither exist.
+    
+    Args:
+        data: Dictionary containing potential performer or update_user keys
+        
+    Returns:
+        String with performer, update_user, or empty string
+    """
+    if 'performer' in data and data['performer']:
+        return data['performer']
+    elif 'update_user' in data and data['update_user']:
+        return data['update_user']
+    return ''
+
 def format_grouped_changes_for_display(sessions: List[Dict[str, Any]]) -> any:
     """Formats sessions into a table with a header row for each session."""
     if not sessions:
@@ -23,7 +40,7 @@ def format_grouped_changes_for_display(sessions: List[Dict[str, Any]]) -> any:
         display_rows.append({
             'Date': f"<div {date_style}><b>{session['date']}</b></div>",
             'Time': f"<b>{session['time']}</b>",
-            'User': f"<b>{session['user']}</b>",
+            'Performer/User': f"<b>{session['user']}</b>",
             'Table': f"<b>{display_table_name}</b>",
             'Field': '', 
             'Old Value': '', 
@@ -34,7 +51,7 @@ def format_grouped_changes_for_display(sessions: List[Dict[str, Any]]) -> any:
             display_rows.append({
                 'Date': '',
                 'Time': '',  # Do not display time in non-header rows
-                'User': '',
+                'Performer/User': '',
                 'Table': '',
                 'Field': change.get('field_name'),
                 'Old Value': str(change.get('old_value', ''))[:100],
@@ -45,8 +62,8 @@ def format_grouped_changes_for_display(sessions: List[Dict[str, Any]]) -> any:
         return None
         
     df = pd.DataFrame(display_rows)
-    # Define the final column order: Date, Time, User, Table, Field, Old Value, New Value
-    df = df[['Date', 'Time', 'User', 'Table', 'Field', 'Old Value', 'New Value']]
+    # Define the final column order: Date, Time, Performer/User, Table, Field, Old Value, New Value
+    df = df[['Date', 'Time', 'Performer/User', 'Table', 'Field', 'Old Value', 'New Value']]
     return df
 
 def format_summary_stats(stats: Dict[str, Any], from_date: str, to_date: str, selected_tables: List[str]) -> str:
@@ -92,9 +109,9 @@ def format_summary_stats(stats: Dict[str, Any], from_date: str, to_date: str, se
     
     stats_text += f"""
 
-### 👥 User Activity
-- **Active Users:** {stats.get('unique_users', 0)}
-- **Most Active User:** {stats.get('most_active_user', 'N/A')} ({stats.get('most_active_user_changes', 0)} changes)
+### 👥 Performer/User Activity
+- **Active Performers/Users:** {stats.get('unique_users', 0)}
+- **Most Active Performer/User:** {stats.get('most_active_user', 'N/A')} ({stats.get('most_active_user_changes', 0)} changes)
 
 ### 🏆 Top Modified Fields
 """
@@ -123,19 +140,14 @@ def truncate_text(text: str, max_length: int) -> str:
         return text
     return text[:max_length-3] + "..."
 
-def format_connection_status(status: Dict[str, Any]) -> str:
-    """
-    Format database connection status for display.
-    
-    Args:
-        status: Connection status dictionary
-        
-    Returns:
-        Formatted status string
-    """
-    if status.get('success'):
-        return f"✅ Connected to {status['host']}:{status['port']}/{status['database']}"
+def format_connection_status(connection_info: Dict[str, Any]) -> str:
+    """Format database connection status message."""
+    if connection_info['success']:
+        if connection_info.get('version'):
+            return f"✅ Connected to {connection_info['version']}"
+        else:
+            return "✅ Database connection successful"
     else:
-        return f"❌ Connection failed: {status.get('message', 'Unknown error')}"
+        return f"❌ Connection failed: {connection_info.get('error', 'Unknown error')}"
 
  

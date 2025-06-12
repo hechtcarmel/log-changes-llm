@@ -47,7 +47,8 @@ class ChangeSession:
     
     def to_formatted_block(self) -> str:
         """Format the session as a formatted block."""
-        header = f"On {self.timestamp}, user {self.user} changed:"
+        
+        header = f"On {self.timestamp}\n{self.user} changed:"
         change_lines = [change.to_formatted_line() for change in self.changes]
         return header + "\n" + "\n".join(change_lines)
 
@@ -132,7 +133,8 @@ class BaseModel(ABC):
     async def analyze_campaign_changes(
         self, 
         changes_text: str,
-        campaign_id: int
+        campaign_id: int,
+        net_changes_text: str
     ) -> CampaignAnalysisResponse:
         """Analyze campaign changes and provide insights."""
         pass 

@@ -3,6 +3,7 @@ from datetime import datetime
 import pandas as pd
 from .connection import DatabaseConnection
 import logging
+from utils.data_formatter import get_performer_or_user
 
 logger = logging.getLogger(__name__)
 
@@ -332,6 +333,10 @@ class CampaignChangesQuery:
         if not changes:
             return []
             
+        # Process performer/update_user fields
+        for change in changes:
+            change['user_value'] = get_performer_or_user(change)
+            
         df = pd.DataFrame(changes)
         
         if 'update_time' not in df.columns or df['update_time'].isnull().all():
@@ -339,14 +344,15 @@ class CampaignChangesQuery:
 
         df['update_time'] = pd.to_datetime(df['update_time'])
         df['update_date'] = df['update_time'].dt.date
-        df['update_user'] = df['update_user'].fillna('System/Unknown')
+        # Use user_value instead of update_user
+        df['user_value'] = df['user_value'].fillna('System/Unknown')
         # A 1-minute time window helps define a session of rapid changes.
         df['time_group'] = df['update_time'].dt.floor('1T')
 
         sessions = []
         # A session is a unique combination of date, user, time window, and table.
         for (update_date, user, time_group, table), group in df.groupby(
-            ['update_date', 'update_user', 'time_group', 'source_table']
+            ['update_date', 'user_value', 'time_group', 'source_table']
         ):
             sorted_changes = group.sort_values('update_time').to_dict('records')
             session = {
@@ -398,8 +404,8 @@ class CampaignChangesQuery:
                 for change in table_changes:
                     old_val = change.get('old_value') or '[empty]'
                     new_val = change.get('new_value') or '[empty]'
-                    user = change.get('update_user', 'Unknown')
-                    formatted_text += f"    - {change['field_name']}: '{old_val}' → '{new_val}' (by {user})\n"
+                    user = get_performer_or_user(change) or 'Unknown'
+                    formatted_text += f"    - {change['field_name']}: '{old_val}' → '{new_val}' (by Performer/User: {user})\n"
             
             formatted_text += "\n"
         
@@ -428,6 +434,11 @@ class CampaignChangesQuery:
                 "most_active_user_changes": 0
             }
         
+        # Process the performer/user values
+        for change in changes:
+            if 'user_value' not in change:
+                change['user_value'] = get_performer_or_user(change)
+        
         df = pd.DataFrame(changes)
         
         # Convert update_time to datetime if it's a string
@@ -439,8 +450,8 @@ class CampaignChangesQuery:
         max_date = df['update_time'].max()
         date_range_days = (max_date - min_date).days + 1 if min_date != max_date else 1
         
-        # Get user statistics
-        user_counts = df['update_user'].value_counts()
+        # Get user statistics - use user_value instead of update_user
+        user_counts = df['user_value'].value_counts()
         most_active_user = user_counts.index[0] if not user_counts.empty else "N/A"
         most_active_user_changes = user_counts.iloc[0] if not user_counts.empty else 0
         
@@ -451,7 +462,7 @@ class CampaignChangesQuery:
         stats = {
             "total_changes": len(changes),
             "unique_fields": df['field_name'].nunique(),
-            "unique_users": df['update_user'].nunique(),
+            "unique_users": df['user_value'].nunique(),
             "date_range_days": date_range_days,
             "changes_per_day": len(changes) / date_range_days,
             "changes": changes,  # Include raw changes for table-specific stats

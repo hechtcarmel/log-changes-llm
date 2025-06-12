@@ -13,7 +13,8 @@ from database import DatabaseConnection, CampaignChangesQuery
 from utils.data_formatter import (
     format_grouped_changes_for_display,
     format_connection_status,
-    format_summary_stats
+    format_summary_stats,
+    get_performer_or_user
 )
 
 # Load environment variables
@@ -149,10 +150,17 @@ async def analyze_campaign_stream(
                     field_name = ch.get('field_name') or ch.get('field') or 'unknown_field'
                     if field_name in skip_fields:
                         continue
+                    
+                    # Get the performer or user from the change record
+                    performer_user = get_performer_or_user(ch)
+                    # If no performer/user in the change record, use the session user
+                    if not performer_user:
+                        performer_user = user
+                        
                     entry_objs.append(
                         ChangeEntry(
                             timestamp=timestamp,
-                            user=user,
+                            user=performer_user,
                             field=field_name,
                             old_value=str(ch.get('old_value', '')),
                             new_value=str(ch.get('new_value', ''))
@@ -354,7 +362,7 @@ def create_interface():
                     label="All Campaign Changes Grouped by Session",
                     interactive=False,
                     wrap=True,
-                    headers=['Date', 'Time', 'User', 'Table', 'Field', 'Old Value', 'New Value'],
+                    headers=['Date', 'Time', 'Performer/User', 'Table', 'Field', 'Old Value', 'New Value'],
                     datatype=["markdown", "markdown", "markdown", "markdown", "markdown", "markdown", "markdown"],
                     column_widths=["auto"] * 7,
                     elem_classes=["centered-header"]
