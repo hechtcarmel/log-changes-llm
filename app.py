@@ -3,7 +3,7 @@
 import logging
 import multiprocessing
 
-from services import ConfigService, UIService
+from campaign_analyzer.services import ConfigService, UIService
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

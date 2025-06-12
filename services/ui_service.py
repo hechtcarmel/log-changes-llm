@@ -4,8 +4,8 @@ import os
 from datetime import date
 import gradio as gr
 
-from database import CampaignChangesQuery
-from constants import get_table_choices
+from campaign_analyzer.database import CampaignChangesQuery
+from campaign_analyzer.constants import get_table_choices
 from .campaign_service import CampaignService
 
 class UIService:

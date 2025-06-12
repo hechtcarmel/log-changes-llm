@@ -6,15 +6,15 @@ import logging
 from typing import List, AsyncGenerator, Tuple, Any
 import gradio as gr
 
-from models import OpenAIModel, CampaignAnalysisResponse, ChangeEntry, ChangeSession
-from database import DatabaseConnection, CampaignChangesQuery
-from utils.data_formatter import (
+from campaign_analyzer.models import OpenAIModel, CampaignAnalysisResponse, ChangeEntry, ChangeSession
+from campaign_analyzer.database import DatabaseConnection, CampaignChangesQuery
+from campaign_analyzer.utils.data_formatter import (
     format_grouped_changes_for_display,
     format_connection_status,
     format_summary_stats,
     get_performer_or_user
 )
-from constants import UI_MESSAGES, PROGRESS_STEPS
+from campaign_analyzer.constants import UI_MESSAGES, PROGRESS_STEPS
 from .validation_service import ValidationService
 
 class CampaignService:

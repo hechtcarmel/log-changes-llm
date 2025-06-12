@@ -3,7 +3,7 @@ from datetime import datetime
 import pandas as pd
 from .connection import DatabaseConnection
 import logging
-from utils.data_formatter import get_performer_or_user
+from campaign_analyzer.utils.data_formatter import get_performer_or_user
 
 logger = logging.getLogger(__name__)
 

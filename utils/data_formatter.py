@@ -1,6 +1,6 @@
 from typing import List, Dict, Any
 import pandas as pd
-from constants import SKIP_FIELDS, DISPLAY_CONFIG
+from campaign_analyzer.constants import SKIP_FIELDS, DISPLAY_CONFIG
 
 def get_performer_or_user(data: Dict[str, Any]) -> str:
     """

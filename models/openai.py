@@ -2,8 +2,8 @@ from typing import Dict, List, Optional, Any, AsyncGenerator
 import json
 from openai import AsyncOpenAI
 from .base import BaseModel, CampaignAnalysisResponse
-from prompts.campaign_changes import get_system_prompt, get_user_prompt
-from constants import AI_MODEL_CONFIG
+from campaign_analyzer.prompts.campaign_changes import get_system_prompt, get_user_prompt
+from campaign_analyzer.constants import AI_MODEL_CONFIG
 
 class OpenAIModel(BaseModel):
     """Interface for OpenAI models for campaign analysis."""

@@ -2,7 +2,7 @@ import pymysql
 from pymysql import Error
 from typing import Optional, Dict, Any
 import logging
-from constants import DATABASE_CONFIG
+from campaign_analyzer.constants import DATABASE_CONFIG
 
 class DatabaseConnection:
     """Handles MySQL database connections with runtime credentials."""

@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import List, Dict, Any, Tuple
-from constants import VALIDATION_RULES, UI_MESSAGES
+from campaign_analyzer.constants import VALIDATION_RULES, UI_MESSAGES
 
 class ValidationError(Exception):
     """Custom exception for validation errors."""
