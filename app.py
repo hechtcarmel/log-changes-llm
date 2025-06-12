@@ -19,7 +19,7 @@ def main():
     # Create and launch the interface
     app = ui_service.create_interface()
     app.launch(
-        server_name="127.0.0.1",
+        server_name="0.0.0.0",
         server_port=7861,
         show_error=True,
         share=False,
