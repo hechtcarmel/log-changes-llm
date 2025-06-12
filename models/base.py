@@ -114,17 +114,79 @@ class CampaignAnalysisResponse:
         """Convert response to formatted text for display."""
         text = f"**Summary:**\n{self.summary}\n\n"
         
-        if self.change_sessions:
-            text += "**📋 Change History:**\n"
-            text += f"{self.format_change_history()}\n\n"
-        
         if self.key_insights:
             text += "**💡 Key Insights:**\n"
             for insight in self.key_insights:
                 text += f"• {insight}\n"
             text += "\n"
         
+        if self.change_sessions:
+            text += "**📋 Change History:**\n"
+            text += f"{self.format_change_history()}\n\n"
+        
         return text
+
+    @staticmethod
+    def format_partial_response(partial_json: str) -> str:
+        """Format partial JSON response for streaming display."""
+        try:
+            # Try to parse complete JSON first
+            parsed = json.loads(partial_json)
+            response = CampaignAnalysisResponse.from_dict(parsed)
+            return response.to_formatted_text()
+        except json.JSONDecodeError:
+            # Parse partial content for streaming display
+            display_text = ""
+            
+            # Try to extract summary if present
+            if '"summary"' in partial_json:
+                summary_start = partial_json.find('"summary"')
+                if summary_start != -1:
+                    # Find the start of the summary value
+                    colon_pos = partial_json.find(':', summary_start)
+                    if colon_pos != -1:
+                        # Find the opening quote
+                        quote_start = partial_json.find('"', colon_pos)
+                        if quote_start != -1:
+                            # Try to find the closing quote (but it might be incomplete)
+                            quote_end = partial_json.find('"', quote_start + 1)
+                            if quote_end != -1:
+                                summary_content = partial_json[quote_start + 1:quote_end]
+                            else:
+                                # Incomplete summary - show what we have
+                                summary_content = partial_json[quote_start + 1:] + "..."
+                            
+                            # Clean up escape sequences
+                            summary_content = summary_content.replace('\\n', '\n').replace('\\"', '"')
+                            display_text += f"**Summary:**\n{summary_content}\n\n"
+            
+            # Try to extract key insights if present
+            if '"key_insights"' in partial_json:
+                insights_start = partial_json.find('"key_insights"')
+                if insights_start != -1:
+                    # Look for the array start
+                    bracket_start = partial_json.find('[', insights_start)
+                    if bracket_start != -1:
+                        # Try to extract insights from the array
+                        insights_section = partial_json[bracket_start:]
+                        display_text += "**💡 Key Insights:**\n"
+                        
+                        # Simple extraction of quoted strings in the array
+                        import re
+                        insight_matches = re.findall(r'"([^"]*)"', insights_section)
+                        for insight in insight_matches:
+                            if insight and not insight in ['key_insights', 'summary']:
+                                display_text += f"• {insight}\n"
+                        
+                        if not insight_matches:
+                            display_text += "Generating insights...\n"
+                        display_text += "\n"
+            
+            # If we couldn't parse anything meaningful, show generating message
+            if not display_text:
+                display_text = "🤖 Generating AI analysis..."
+            
+            return display_text
 
 class BaseModel(ABC):
     """Base class for all LLM models."""

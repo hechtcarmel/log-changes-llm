@@ -118,12 +118,8 @@ class CampaignService:
             ai_full_response = ""
             async for chunk in openai_model.analyze_campaign_changes(ai_input_text, campaign_id_int, net_changes_text):
                 ai_full_response += chunk
-                # Format partial JSON nicely
-                try:
-                    parsed_json = json.loads(ai_full_response)
-                    display_text = CampaignAnalysisResponse.from_dict(parsed_json).to_formatted_text()
-                except json.JSONDecodeError:
-                    display_text = ai_full_response.replace("{", "{\n").replace("}", "\n}").replace(",", ",\n")
+                # Format partial response nicely using the new method
+                display_text = CampaignAnalysisResponse.format_partial_response(ai_full_response)
                 
                 yield status_message, changes_display_table, display_text, stats_text, ai_input_text
                 await asyncio.sleep(0.05)
