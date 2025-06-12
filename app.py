@@ -244,7 +244,7 @@ def create_interface():
     
     with gr.Blocks(
         title="Campaign Changes Analyzer",
-        theme=gr.themes.Soft(),
+        theme=gr.themes.Ocean(),
         css="""
         .tab-nav { background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); }
         .tab-nav button { color: white !important; }
