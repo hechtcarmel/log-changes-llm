@@ -2,15 +2,16 @@ import pymysql
 from pymysql import Error
 from typing import Optional, Dict, Any
 import logging
+from constants import DATABASE_CONFIG
 
 class DatabaseConnection:
     """Handles MySQL database connections with runtime credentials."""
     
     def __init__(self):
         self.connection = None
-        self.host = "proxysql-office.taboolasyndication.com"
-        self.port = 6033
-        self.database = "trc"
+        self.host = DATABASE_CONFIG["host"]
+        self.port = DATABASE_CONFIG["port"]
+        self.database = DATABASE_CONFIG["database"]
     
     def connect(self, username: str, password: str) -> bool:
         """
@@ -31,8 +32,8 @@ class DatabaseConnection:
                 user=username,
                 password=password,
                 autocommit=True,
-                connect_timeout=10,
-                charset='utf8mb4'
+                connect_timeout=DATABASE_CONFIG["connect_timeout"],
+                charset=DATABASE_CONFIG["charset"]
             )
             
             if self.connection.open:

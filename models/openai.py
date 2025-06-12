@@ -3,6 +3,7 @@ import json
 from openai import AsyncOpenAI
 from .base import BaseModel, CampaignAnalysisResponse
 from prompts.campaign_changes import get_system_prompt, get_user_prompt
+from constants import AI_MODEL_CONFIG
 
 class OpenAIModel(BaseModel):
     """Interface for OpenAI models for campaign analysis."""
@@ -10,10 +11,10 @@ class OpenAIModel(BaseModel):
     def __init__(
         self, 
         api_key: str,
-        model_name: str = "gpt-4o-mini", 
+        model_name: str = AI_MODEL_CONFIG["default_model"], 
     ):
         self.model_name = model_name
-        self.client = AsyncOpenAI(api_key=api_key, timeout=600.0)
+        self.client = AsyncOpenAI(api_key=api_key, timeout=AI_MODEL_CONFIG["timeout"])
     
     async def analyze_campaign_changes(
         self, 
@@ -28,7 +29,7 @@ class OpenAIModel(BaseModel):
         try:
             stream = await self.client.chat.completions.create(
                 model=self.model_name,
-                response_format={"type": "json_object"},
+                response_format=AI_MODEL_CONFIG["response_format"],
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}

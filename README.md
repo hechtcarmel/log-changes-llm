@@ -1,25 +1,84 @@
 # Campaign Changes Analyzer
 
-A Python application that analyzes MySQL campaign change logs and provides AI-powered insights about modifications, risks, and recommendations using OpenAI.
+A modular Python application that analyzes MySQL campaign change logs and provides AI-powered insights about modifications, risks, and recommendations using OpenAI. Built with clean architecture principles for maintainability and extensibility.
 
-## Features
+## 🏗️ Architecture
 
-- **Database Integration**: Connects to MySQL database with runtime credentials
-- **Campaign Analysis**: Retrieves and analyzes campaign modification history
-- **AI Insights**: Uses OpenAI to generate strategic insights and recommendations
-- **Data Visualization**: Groups changes by time and provides summary statistics
-- **Gradio Interface**: User-friendly web interface for analysis
+The application follows clean architecture principles with clear separation of concerns:
 
-## Requirements
+### **Service Layer**
+- **ConfigService**: Centralized configuration and environment management
+- **ValidationService**: Input validation and data integrity checks
+- **CampaignService**: Main business logic coordination for campaign analysis
+- **UIService**: Gradio interface creation and event handling
 
+### **Data Layer**
+- **DatabaseConnection**: MySQL connection management with runtime credentials
+- **CampaignChangesQuery**: Database query operations and data retrieval
+
+### **Models**
+- **OpenAIModel**: AI integration for campaign analysis
+- **BaseModel**: Abstract base for AI models
+- **Data Models**: ChangeEntry, ChangeSession, CampaignAnalysisResponse
+
+### **Constants & Configuration**
+- **Constants**: Centralized application constants and configurations
+- **Table Mappings**: Database table definitions and display names
+
+## 📁 Project Structure
+
+```
+campaign-changes-analyzer/
+├── app.py                          # Main application entry point (15 lines)
+├── constants/                      # Application constants
+│   ├── __init__.py                 # Package exports
+│   ├── app_constants.py            # Core application constants
+│   └── table_mappings.py           # Database table configurations
+├── services/                       # Business logic layer
+│   ├── __init__.py                 # Package exports
+│   ├── config_service.py           # Configuration management
+│   ├── validation_service.py       # Input validation logic
+│   ├── campaign_service.py         # Main business logic coordinator
+│   └── ui_service.py               # UI creation and management
+├── database/                       # Data access layer
+│   ├── __init__.py
+│   ├── connection.py               # Database connection management
+│   └── queries.py                  # Query operations
+├── models/                         # Data models and AI integration
+│   ├── __init__.py
+│   ├── base.py                     # Base models and data structures
+│   └── openai.py                   # OpenAI integration
+├── utils/                          # Utility functions
+│   ├── __init__.py
+│   └── data_formatter.py           # Data formatting utilities
+├── prompts/                        # AI prompt templates
+│   ├── __init__.py
+│   └── campaign_changes.py         # Campaign analysis prompts
+└── ui/                             # UI components (if needed)
+```
+
+## ✨ Features
+
+- **🏗️ Clean Architecture**: Service-oriented design with clear separation of concerns
+- **🔧 Configurable**: Centralized configuration management with environment support
+- **✅ Robust Validation**: Comprehensive input validation and error handling
+- **🗄️ Database Integration**: Secure MySQL connection with runtime credentials
+- **🤖 AI-Powered Analysis**: OpenAI integration for intelligent campaign insights
+- **📊 Rich Data Visualization**: Grouped changes, statistics, and formatted displays
+- **🖥️ Modern UI**: Responsive Gradio interface with tabbed results
+- **🛡️ Security**: Secure credential handling and validation
+
+## 🚀 Quick Start
+
+### Prerequisites
 - Python 3.11+
 - Conda
 - MySQL database access
 - OpenAI API key
 
-## Installation
+### Installation
 
-### Quick Setup (Recommended)
+1. **Clone and setup**:
 ```bash
 git clone <repository-url>
 cd campaign-changes-analyzer
@@ -27,134 +86,146 @@ chmod +x setup.sh
 ./setup.sh
 ```
 
-### Manual Setup
-1. Clone this repository:
-```bash
-git clone <repository-url>
-cd campaign-changes-analyzer
-```
-
-2. Create and activate the Conda environment:
-```bash
-conda env create -f environment.yml
-conda activate log_changes
-```
-
-3. Set up environment variables:
+2. **Configure environment**:
 ```bash
 cp env.example .env
+# Edit .env with your OpenAI API key
 ```
 
-4. Edit the `.env` file and add your OpenAI API key:
+3. **Run the application**:
 ```bash
-# Get your API key from: https://platform.openai.com/api-keys
+python app.py
+```
+
+## 🔧 Configuration
+
+The application uses a centralized configuration system:
+
+### Environment Variables (.env)
+```bash
 OPENAI_API_KEY=sk-your_openai_api_key_here
 OPENAI_MODEL=gpt-4o-mini
 ```
 
-## Usage
+### Database Configuration
+Configured in `constants/app_constants.py`:
+- Host: proxysql-office.taboolasyndication.com:6033
+- Database: trc
+- Tables: Multiple campaign change log tables
 
-1. Start the application:
-```bash
-python app.py
-```
+### Application Constants
+All constants are centralized in the `constants/` directory:
+- UI messages and labels
+- Validation rules and limits
+- Display configurations
+- Progress step mappings
 
-2. Open the web interface in your browser (usually at http://127.0.0.1:7860)
+## 📋 Usage
 
-3. Enter the following:
-   - **MySQL Username**: Your database username
-   - **MySQL Password**: Your database password  
-   - **Campaign ID**: The campaign ID to analyze (numeric)
-   - **Max Records**: Number of recent changes to retrieve (5-50)
+1. **Start the application**: `python app.py`
+2. **Access the web interface**: Usually at http://127.0.0.1:7861
+3. **Enter credentials and parameters**:
+   - MySQL username and password
+   - Campaign ID (numeric)
+   - Date range for analysis
+   - Select tables to query
+   - OpenAI API key (if not in environment)
+4. **Analyze**: Click "🔍 Analyze Campaign Changes"
 
-4. Click "🔍 Analyze Campaign Changes" to get results
+## 📊 Analysis Results
 
-## Database Configuration
-
-The application connects to:
-- **Host**: proxysql-office.taboolasyndication.com:6033
-- **Database**: trc
-- **Table**: sp_campaign_details_v2_changes_log
-
-Database credentials are entered via the GUI for security (not stored in files).
-
-## What You Get
-
-### AI Analysis
-- **Summary**: Overview of changes and their significance
-- **Key Insights**: Strategic observations about campaign modifications
-- **Risk Factors**: Potential concerns or issues identified
-- **Recommendations**: Actionable suggestions for campaign management
+### AI-Generated Insights
+- **📋 Summary**: Overview of changes and their significance
+- **💡 Key Insights**: Strategic observations about modifications
+- **⚠️ Risk Assessment**: Potential concerns identified
+- **🎯 Recommendations**: Actionable suggestions
 
 ### Data Views
-- **Grouped Changes**: Changes organized by update time and user
-- **All Changes**: Complete chronological change history
-- **Statistics**: Summary metrics about change patterns
-- **Raw Data**: Formatted data sent to AI (for transparency)
+- **🗓️ Change History**: Chronological change sessions
+- **📈 Statistics**: Summary metrics and patterns
+- **🔍 Raw Data**: Formatted data sent to AI (transparency)
 
-## Example Output
+## 🛠️ Development
 
-```json
-{
-  "summary": "Campaign received 8 changes across 3 sessions over 2 days, focusing on budget optimization and targeting refinements.",
-  "key_insights": [
-    "Budget increases suggest positive performance trends",
-    "Geographic targeting expansion indicates market testing",
-    "Bid strategy changes show move toward automation"
-  ],
-  "risk_factors": [
-    "Multiple simultaneous changes may complicate performance attribution",
-    "Rapid geographic expansion requires careful monitoring"
-  ],
-  "recommendations": [
-    "Monitor performance in new geographic regions closely",
-    "Allow 7-14 day learning period for automated bidding",
-    "Establish baseline metrics before further optimizations"
-  ]
-}
+### Design Principles
+- **SOLID Principles**: Single responsibility, open/closed, dependency inversion
+- **DRY (Don't Repeat Yourself)**: Centralized constants and reusable components
+- **KISS (Keep It Simple, Stupid)**: Clean, focused interfaces
+- **Separation of Concerns**: Clear boundaries between layers
+
+### Adding New Features
+
+1. **Business Logic**: Add to appropriate service in `services/`
+2. **Configuration**: Add constants to `constants/`
+3. **Validation**: Extend `ValidationService`
+4. **UI Components**: Extend `UIService`
+5. **Database Operations**: Extend query classes in `database/`
+
+### Testing
+```bash
+# Run tests (when implemented)
+python -m pytest tests/
+
+# Check code style
+black .
+flake8 .
 ```
 
-## Architecture
+## 🐛 Troubleshooting
 
-- **Database Layer**: MySQL connection and query management
-- **AI Layer**: OpenAI integration for campaign analysis
-- **Data Processing**: Pandas-based data formatting and grouping
-- **Interface**: Gradio web application with tabbed results
+### Common Issues
 
-## Troubleshooting
-
-### "ModuleNotFoundError: No module named 'gradio'"
-Make sure you're in the correct conda environment:
+**Environment Issues**:
 ```bash
 conda activate log_changes
+pip install -r requirements.txt  # if conda fails
+```
+
+**Database Connection**:
+- Verify credentials and network access
+- Check VPN connection if required
+- Ensure database host is accessible
+
+**OpenAI API**:
+- Verify API key format (starts with `sk-`)
+- Check API quota and billing
+- Ensure model availability
+
+**Import Errors**:
+```bash
+# Ensure you're in the project directory
+cd campaign-changes-analyzer
 python app.py
 ```
 
-### Environment Setup Issues
-If the environment creation fails, try:
-```bash
-conda clean --all
-conda env create -f environment.yml --force
-```
+## 🔐 Security
 
-### MySQL Connection Issues
-- Ensure you have the correct database credentials
-- Check VPN connection if required
-- Verify the hostname: `proxysql-office.taboolasyndication.com:6033`
+- **Credential Safety**: No credential storage or persistence
+- **Secure Input**: Password fields and validation
+- **Environment Protection**: .env files ignored by git
+- **Connection Testing**: Validation before operations
+- **Input Sanitization**: Comprehensive validation service
 
-### OpenAI API Issues
-- Verify your API key is valid: https://platform.openai.com/api-keys
-- Check your API quota and billing settings
-- Ensure the key starts with `sk-`
+## 🚦 Performance
 
-## Security
+- **Efficient Architecture**: Service layer for optimal resource usage
+- **Streaming Results**: Real-time AI analysis updates
+- **Connection Management**: Proper database connection lifecycle
+- **Memory Optimization**: Pandas for efficient data processing
 
-- Database credentials entered via GUI (not stored)
-- Secure password input fields
-- No credential persistence or caching
-- Connection testing before queries
-- .env file ignored by git (contains API keys)
+## 📄 License
 
-## License
+MIT License - see LICENSE file for details
 
-MIT 
+## 🤝 Contributing
+
+1. Follow the established architecture patterns
+2. Add constants to appropriate files
+3. Include comprehensive validation
+4. Update documentation for new features
+5. Maintain clean separation of concerns
+
+## 🔄 Version History
+
+- **v2.0.0**: Refactored architecture with service layer
+- **v1.0.0**: Initial monolithic implementation 

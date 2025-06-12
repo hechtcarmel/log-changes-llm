@@ -1,5 +1,6 @@
 from typing import List, Dict, Any
 import pandas as pd
+from constants import SKIP_FIELDS, DISPLAY_CONFIG
 
 def get_performer_or_user(data: Dict[str, Any]) -> str:
     """
@@ -24,7 +25,7 @@ def format_grouped_changes_for_display(sessions: List[Dict[str, Any]]) -> any:
         return None
     
     display_rows = []
-    skip_fields = {'update_time', 'performer', 'update_user'}
+    skip_fields = SKIP_FIELDS
     
     # Each item in `sessions` is now a discrete session.
     for session in sessions:
@@ -34,7 +35,7 @@ def format_grouped_changes_for_display(sessions: List[Dict[str, Any]]) -> any:
             continue  # Skip this session if no changes remain after filtering
 
         display_table_name = session['source_table'].replace('_changes_log', '').replace('_', ' ').title()
-        date_style = "style='border-bottom:2px solid #bdbdbd; display:block;'"
+        date_style = DISPLAY_CONFIG["date_style"]
         summary_text = f"_{session['change_count']} changes in this session_"
 
         display_rows.append({
@@ -54,16 +55,16 @@ def format_grouped_changes_for_display(sessions: List[Dict[str, Any]]) -> any:
                 'Performer/User': '',
                 'Table': '',
                 'Field': change.get('field_name'),
-                'Old Value': str(change.get('old_value', ''))[:100],
-                'New Value': str(change.get('new_value', ''))[:100]
+                'Old Value': str(change.get('old_value', ''))[:DISPLAY_CONFIG["max_value_length"]],
+                'New Value': str(change.get('new_value', ''))[:DISPLAY_CONFIG["max_value_length"]]
             })
     
     if not display_rows:
         return None
         
     df = pd.DataFrame(display_rows)
-    # Define the final column order: Date, Time, Performer/User, Table, Field, Old Value, New Value
-    df = df[['Date', 'Time', 'Performer/User', 'Table', 'Field', 'Old Value', 'New Value']]
+    # Define the final column order
+    df = df[DISPLAY_CONFIG["table_columns"]]
     return df
 
 def format_summary_stats(stats: Dict[str, Any], from_date: str, to_date: str, selected_tables: List[str]) -> str:
@@ -117,7 +118,7 @@ def format_summary_stats(stats: Dict[str, Any], from_date: str, to_date: str, se
 """
     
     top_fields = stats.get('top_fields', [])
-    for field, count in top_fields[:10]:  # Show top 10
+    for field, count in top_fields[:DISPLAY_CONFIG["top_fields_limit"]]:
         stats_text += f"- **{field}:** {count} changes\n"
     
     if not top_fields:
