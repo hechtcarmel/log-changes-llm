@@ -164,6 +164,22 @@ class UIService:
                 info="End date for filtering changes"
             )
         
+        with gr.Row():
+            today_button = gr.Button("📅 Today", size="sm", variant="secondary")
+            sync_button = gr.Button("🔄 Sync", size="sm", variant="secondary")
+        
+        # Event handlers for date buttons
+        today_button.click(
+            fn=lambda: (today, today),
+            outputs=[from_date_input, to_date_input]
+        )
+        
+        sync_button.click(
+            fn=lambda from_date: (from_date, from_date),
+            inputs=[from_date_input],
+            outputs=[from_date_input, to_date_input]
+        )
+        
         return from_date_input, to_date_input
     
     def _create_table_selection(self, table_choices: list) -> gr.CheckboxGroup:
